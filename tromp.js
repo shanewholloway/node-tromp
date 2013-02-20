@@ -209,7 +209,7 @@ WalkEntry = (function() {
 
   WalkEntry.prototype.autoWalk = function() {
     if (!this.excluded && this.isDirectory()) {
-      this.root.autoWalk(this.path());
+      this.root.autoWalk(this.path(), this.root);
       return true;
     } else {
       return false;
@@ -461,8 +461,8 @@ WalkRoot = (function(_super) {
     });
   };
 
-  WalkRoot.prototype.autoWalk = function(aPath) {
-    return this.walk(aPath);
+  WalkRoot.prototype.autoWalk = function(aPath, root) {
+    return root.walk(aPath);
   };
 
   WalkRoot.prototype.filter = function(rx, ctx) {

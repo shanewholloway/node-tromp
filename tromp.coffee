@@ -93,7 +93,7 @@ class WalkEntry
     else return false
   autoWalk: () ->
     if not @excluded and @isDirectory()
-      @root.autoWalk(@path())
+      @root.autoWalk(@path(), @root)
       return true
     else return false
 
@@ -218,7 +218,8 @@ class WalkRoot extends events.EventEmitter
       if --@_activeWalks is 0
         @emit 'active', false
 
-  autoWalk: (aPath) -> @walk(aPath)
+  autoWalk: (aPath, root) ->
+    root.walk(aPath)
 
   filter: (rx, ctx) ->
     if rx?
