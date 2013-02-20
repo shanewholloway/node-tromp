@@ -1,21 +1,15 @@
 {
   "name": "tromp",
   "version": "0.2.0",
-  "description": "Asynchronous filesystem directory walk with events and accept/reject filtering. For use with minimatch or other filtering tools.",
-  "main": "tromp.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": "",
-  "keywords": [
-    "fs.readdir",
-    "minimatch",
-    "glob",
-    "walk",
-    "os.walk",
-    "walktree"
-  ],
-  "author": "Shane Holloway <shane.holloway@ieee.org>",
   "license": "MIT",
-  "readmeFilename": "README.md"
+  "readmeFilename": "README.md",
+  "description": "Asynchronous filesystem directory walk with events and accept/reject filtering. For use with minimatch or other filtering tools.",
+  "keywords": [ "fs.readdir", "minimatch", "glob", "walk", "os.walk", "walktree" ],
+  "author": "Shane Holloway <shane.holloway@ieee.org>",
+
+  "main": "tromp.js",
+
+  "repository": { "type": "git",
+    "url": "git://github.com/shanewholloway/node-tromp.git" },
+  "scripts": { "test": "make test" }
 }

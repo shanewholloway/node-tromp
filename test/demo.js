@@ -15,7 +15,7 @@ testObj = tromp(testDir)
       console.log('active?', active)
   })
 
-if (1)
+if (0)
   testObj.queueTask.report = function(nTasks, n, fnq) {
     console.log('taskQueue:', nTasks, n, fnq) }
 
