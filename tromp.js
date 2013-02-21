@@ -88,7 +88,7 @@ WalkEntry = (function() {
       return null;
     }
     if (rx.call != null) {
-      return rx.call(ctx, this);
+      return rx.call(ctx, this.name);
     }
     return this.name.match(rx) != null;
   };
@@ -130,7 +130,7 @@ WalkEntry = (function() {
 
   WalkEntry.prototype.walk = function(force) {
     if (this.isWalkable(force)) {
-      return this.node.root.walk(this.path(), this);
+      return this.node.root.walk(this.path(), this.node);
     }
   };
 
@@ -185,6 +185,11 @@ WalkListing = (function() {
     entry = new this.node.WalkEntry(this.node);
     root._fs_readdir(this.path(), function(err, entries) {
       var n;
+      if (err != null) {
+        if (typeof root.error === "function") {
+          root.error('fs.readdir', err, self);
+        }
+      }
       entries = (entries || []).map(function(e) {
         return entry.create(e);
       });
@@ -193,6 +198,11 @@ WalkListing = (function() {
       n = entries.length;
       return entries.forEach(function(entry) {
         return entry.stat(root, function(err, entry, stat) {
+          if (err != null) {
+            if (typeof root.error === "function") {
+              root.error('fs.stat', err, entry, self);
+            }
+          }
           if (stat != null) {
             root.emit('entry', entry, self);
             root.emit(entry.modeKey(), entry, self);
@@ -378,13 +388,13 @@ WalkNode = (function() {
     });
   }
 
-  WalkNode.prototype.create = function(listPath, parentEntry) {
+  WalkNode.prototype.create = function(listPath, parentNode) {
     return Object.create(this, {
       listPath: {
         value: listPath
       },
       rootPath: {
-        value: (parentEntry != null ? parentEntry.rootPath() : void 0) || listPath
+        value: (parentNode != null ? parentNode.rootPath : void 0) || listPath
       }
     });
   };
@@ -447,13 +457,13 @@ WalkRoot = (function(_super) {
     return this;
   }
 
-  WalkRoot.prototype.walk = function(aPath, entry, parentEntry) {
+  WalkRoot.prototype.walk = function(aPath, parentNode) {
     var node, track,
       _this = this;
     aPath = path.resolve(aPath);
     track = this._activeWalks;
     if (__indexOf.call(track, aPath) < 0) {
-      track[aPath] = node = this._node.create(aPath, parentEntry);
+      track[aPath] = node = this._node.create(aPath, parentNode);
       this.emit('active', ++track[0], +1, track);
       return node._performListing(node, function() {
         delete track[aPath];

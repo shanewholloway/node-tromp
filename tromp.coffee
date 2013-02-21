@@ -40,10 +40,8 @@ class WalkEntry
   isFile: -> @_stat?.isFile()
   isDirectory: -> @_stat?.isDirectory()
   match: (rx, ctx) ->
-    if not rx?
-      return null
-    if rx.call?
-      return rx.call(ctx, @)
+    return null if not rx?
+    return rx.call(ctx, @.name) if rx.call?
     return @name.match(rx)?
   exclude: (v) ->
     if v is undefined or !!v
@@ -67,7 +65,7 @@ class WalkEntry
   isWalkable: (include) ->
     return (include or not @excluded) and @isDirectory()
   walk: (force) ->
-    @node.root.walk(@path(), @) if @isWalkable(force)
+    @node.root.walk(@path(), @node) if @isWalkable(force)
 
   toString: -> @path()
   toJSON: -> @toString()
@@ -90,6 +88,8 @@ class WalkListing
     self = @; @_entries = null
     entry = new @node.WalkEntry(@node)
     root._fs_readdir @path(), (err, entries) ->
+      if err?
+        root.error?('fs.readdir', err, self)
       entries = (entries || []).map (e)->
         entry.create(e)
       self._entries = entries
@@ -98,6 +98,8 @@ class WalkListing
       n = entries.length
       entries.forEach (entry) ->
         entry.stat root, (err, entry, stat)->
+          if err?
+            root.error?('fs.stat', err, entry, self)
           if stat?
             root.emit 'entry', entry, self
             root.emit entry.modeKey(), entry, self
@@ -185,10 +187,10 @@ class WalkNode
     Object.defineProperties @,
       root:{value:root, enumerable: false}
 
-  create: (listPath, parentEntry) ->
+  create: (listPath, parentNode) ->
     return Object.create @,
       listPath:{value: listPath}
-      rootPath:{value: parentEntry?.rootPath() || listPath}
+      rootPath:{value: parentNode?.rootPath || listPath}
 
   _performListing: (done) ->
     new @.WalkListing(@)._performListing(@root, done)
@@ -218,11 +220,11 @@ class WalkRoot extends events.EventEmitter
       opt.schedule => @walk(path)
     return @
 
-  walk: (aPath, entry, parentEntry) ->
+  walk: (aPath, parentNode) ->
     aPath = path.resolve(aPath)
     track = @_activeWalks
     if aPath not in track
-      track[aPath] = node = @_node.create(aPath, parentEntry)
+      track[aPath] = node = @_node.create(aPath, parentNode)
       @emit 'active', ++track[0], +1, track
       node._performListing node, =>
         delete track[aPath]

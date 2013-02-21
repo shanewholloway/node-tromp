@@ -1,4 +1,4 @@
-Tromp is an asynchronous filesystem directory walking algorithm with events and accept/reject filtering. For use with `minimatch` or other filtering tools.
+Tromp is an asynchronous filesystem directory walking algorithm with events and accept/reject filtering, designed to be used modules like `minimatch`.
 
 ## Use
 
