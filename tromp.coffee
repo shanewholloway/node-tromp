@@ -12,32 +12,24 @@ path = require 'path'
 events = require 'events'
 
 class WalkEntry
-  Object.defineProperties @prototype,
-    root:{get:-> @listing.root}
-    path:{get:-> path.resolve(@listing.path, @name)}
-    rootPath:{get:-> @listing.rootPath}
+  constructor: (node) ->
+    Object.defineProperty @, 'node',
+      value:node, enumerable: false
 
-  constructor: (listing) ->
-    Object.defineProperties @,
-      listing:{value:listing, enumerable: false}
-
-  init: (name) ->
-    res = Object.create(@)
-    res.name = name
-    return res
+  create: (name) ->
+    Object.create(@, name:{value:name})
   stat: (root, cb) ->
-    if res = @_stat?
-      cb?(@, stat)
-    else
-      root._fs_stat @path, (err, stat) =>
+    if not @_stat?
+      root._fs_stat @path(), (err, stat) =>
         Object.defineProperty @, '_stat',
           value: stat, enumerable: false
-        if err
-          console.error 'statError:', err, stat
-        cb?(@, stat)
+        cb?(err, @, stat)
+    else cb?(null, @, stat)
     return @
 
-  relPath: (from)-> path.relative(from || @rootPath, @path)
+  path: -> @node.resolve(@name)
+  relPath: -> @node.relative @path()
+  rootPath: -> @node.rootPath
 
   modeKey: ()->
     stat = @_stat
@@ -75,42 +67,37 @@ class WalkEntry
   isWalkable: (include) ->
     return (include or not @excluded) and @isDirectory()
   walk: (force) ->
-    @root.walk(@path, @) if @isWalkable(force)
+    @node.root.walk(@path(), @) if @isWalkable(force)
 
-  toString: -> @path
+  toString: -> @path()
   toJSON: -> @toString()
   valueOf: -> @toString()
   inspect: -> @relPath()
 
 
 class WalkListing
-  Object.defineProperties @prototype,
-    listing:{get:-> @}
+  constructor: (node) ->
+    Object.defineProperty @, 'node',
+      value:node, enumerable: false
 
-  constructor: (root, aPath, parent) ->
-    Object.defineProperties @,
-      root:{value:root, enumerable: false}
-      path:{value:aPath}
-      rootPath:
-        value:parent?.rootPath || aPath
-        enumerable: false
-
-  relPath: (from)-> path.relative(from || @rootPath, @path)
+  path: -> @node.resolve()
+  relPath: -> @node.relative @path()
+  rootPath: -> @node.rootPath
 
   _performListing: (root, done) ->
     if @_entries is not undefined
       return false
     self = @; @_entries = null
-    entry = new @root.WalkEntry @
-    root._fs_readdir @path, (err, entries) ->
+    entry = new @node.WalkEntry(@node)
+    root._fs_readdir @path(), (err, entries) ->
       entries = (entries || []).map (e)->
-        entry.init(e)
+        entry.create(e)
       self._entries = entries
       root.emit 'listing', self
 
       n = entries.length
       entries.forEach (entry) ->
-        entry.stat root, (entry, stat)->
+        entry.stat root, (err, entry, stat)->
           if stat?
             root.emit 'entry', entry, self
             root.emit entry.modeKey(), entry, self
@@ -154,7 +141,7 @@ class WalkListing
 
   inspect: -> @toJSON()
   toJSON: ->
-    res = {path:@path, relPath:@relPath()}
+    res = {path:@path(), relPath:@relPath()}
     for e in @select()
       (res[e.modeKey()+'s']||=[]).push e.name
     return res
@@ -190,10 +177,28 @@ createTaskQueue = (nTasks, schedule = process.nextTick) ->
   return queueTask
 
 
-class WalkRoot extends events.EventEmitter
-  WalkEntry: WalkEntry
+class WalkNode
   WalkListing: WalkListing
+  WalkEntry: WalkEntry
 
+  constructor: (root) ->
+    Object.defineProperties @,
+      root:{value:root, enumerable: false}
+
+  create: (listPath, parentEntry) ->
+    return Object.create @,
+      listPath:{value: listPath}
+      rootPath:{value: parentEntry?.rootPath() || listPath}
+
+  _performListing: (done) ->
+    new @.WalkListing(@)._performListing(@root, done)
+
+  resolve: (args...)-> path.resolve(@listPath, args...)
+  relative: (args...)-> path.relative(@rootPath, args...)
+
+
+class WalkRoot extends events.EventEmitter
+  WalkNode: WalkNode
   constructor: (path, opt, callback) ->
     events.EventEmitter.call @
     if 'function' is typeof opt
@@ -207,18 +212,19 @@ class WalkRoot extends events.EventEmitter
 
     opt.schedule ||= process.nextTick
     @_activeWalks = [0]
+    @_node = new @.WalkNode(@)
     @queueTask = createTaskQueue(opt.tasks || 10, opt.schedule)
     if path?
       opt.schedule => @walk(path)
     return @
 
-  walk: (aPath, entry) ->
+  walk: (aPath, entry, parentEntry) ->
     aPath = path.resolve(aPath)
     track = @_activeWalks
     if aPath not in track
-      track[aPath] = listing = new @WalkListing(@, aPath, entry)
+      track[aPath] = node = @_node.create(aPath, parentEntry)
       @emit 'active', ++track[0], +1, track
-      listing._performListing @, =>
+      node._performListing node, =>
         delete track[aPath]
         @emit 'active', --track[0], -1, track
 
@@ -242,11 +248,11 @@ class WalkRoot extends events.EventEmitter
   _fs_readdir: (aPath, cb) ->
     @queueTask cb, (cb) -> fs.readdir aPath, cb
 
-
 tromp = (path, opt, callback) ->
   new tromp.WalkRoot(path, opt, callback)
 
 tromp.WalkRoot = WalkRoot
+tromp.WalkNode = WalkNode
 tromp.WalkEntry = WalkEntry
 tromp.WalkListing = WalkListing
 module.exports = tromp.tromp = tromp

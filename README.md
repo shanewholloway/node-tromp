@@ -13,7 +13,7 @@ tromp('.')
 
 ## API
 
-### `class WalkRoot`
+### WalkRoot
 Instantiate using `function tromp(path, options, callback)`,
 returning an instance of `WalkRoot` extending from `EventEmitter`.
 
@@ -35,104 +35,103 @@ event       | args          | desc
 `'file'`    | entry, node   | After `'entry'` event, but filtered for files
 `'dir'`     | entry, node   | After `'entry'` event, but filtered for directories
 
-#### `WalkRoot::walk(path)`
+#### `WalkRoot::walk(path)` method
 Starts a new walk rooted at path, creating a `WalkListing` instance if not already in progress for that path. Emits `active` events when listings are initiated or completed.
 
-#### `WalkRoot::filter(rx, ctx)`
+#### `WalkRoot::filter(rx, ctx)` method
 Calls `entry.filter(rx,ctx)` for each `entry` event occurance
 
-#### `WalkRoot::accept(rx, ctx)`
+#### `WalkRoot::accept(rx, ctx)` method
 Calls `entry.accept(rx,ctx)` for each `entry` event occurance
 
-#### `WalkRoot::reject(rx, ctx)`
+#### `WalkRoot::reject(rx, ctx)` method
 Calls `entry.accept(rx,ctx)` for each `entry` event occurance
 
-#### `WalkRoot::autoWalk(entry)`
+#### `WalkRoot::autoWalk(entry)` method
 Double dispatch mechanism, defaulting to `entry.walk()`
 
 
+### WalkNode
+Shared context between `WalkRoot`, `WalkListing` and `WalkEntry` instances.
 
-### `class WalkListing`
+* `root` is the managing `WalkRoot` instance.
+* `rootPath` is the path the path walking initiates from
+* `listPath` is the directory path of the listing
+
+
+### WalkListing
 Encapsulates the active process of listing a directory and stating all of the entries so they can be categorized.
 
-property  | description
-----------|-------------
-listing   | `this`
-path      | string path being listed
-root      | connected `WalkRoot` instance via `listing` property
-rootPath  | path initially responsible for causing this listing
+#### `WalkEntry::path()` method
+Returns resolved path this listing represents
+#### `WalkEntry::rootPath()` method
+Returns the path initially responsible for this listing
+#### `WalkEntry::relPath()` method
+Returns `path()` relative to `rootPath()`
 
-
-#### `WalkListing::relPath(from)`
-Returns `path.relative(from||this.rootPath, this.path)`
-
-#### `WalkListing::select(fnList)`
+#### `WalkListing::select(fnList)` method
 Returns all entries not already excluded matching every function in `fnList`
-#### `WalkListing::selectEx(fnList)`
+#### `WalkListing::selectEx(fnList)` method
 Returns all entries matching every function in `fnList`
 
-#### `WalkListing::matching(rx, opts...)`
+#### `WalkListing::matching(rx, opts...)` method
 Invokes `select({match:rx}, opts...)`
-#### `WalkListing::files(opts...)`
+#### `WalkListing::files(opts...)` method
 Invokes `select({isFile:true}, opts...)`
-#### `WalkListing::dirs(opts...)`
+#### `WalkListing::dirs(opts...)` method
 Invokes `select({isDirectory:true}, opts...)`
 
-#### `WalkListing::walk(opts...)`
+#### `WalkListing::walk(opts...)` method
 Invokes `entry.walk()` for all directories returned by `this.dirs(opts...)`
 
-#### `WalkListing::filter(rx, ctx)`
+#### `WalkListing::filter(rx, ctx)` method
 Invokes `entry.filter(rx, ctx)` against all listing entries.
-#### `WalkListing::accept(opts...)`
+#### `WalkListing::accept(opts...)` method
 Invokes `entry.accept(rx, ctx)` against all listing entries.
-#### `WalkListing::reject(opts...)`
+#### `WalkListing::reject(opts...)` method
 Invokes `entry.reject(rx, ctx)` against all listing entries.
 
 
 
-### `class WalkEntry`
+### WalkEntry
 An manipulable object representing and entry of the `WalkListing`.
 
-property  | description
-----------|-------------
-name      | entry basename
-listing   | connected `WalkListing` instance
-path      | `path.resolve(this.listing.path, this.name)`
-root      | connected `WalkRoot` instance via `listing` property
-rootPath  | path initially responsible for causing this listing
+#### `WalkEntry::path()` method
+Returns resolved path this entry represents
+#### `WalkEntry::rootPath()` method
+Returns the path initially responsible for listing this entry
+#### `WalkEntry::relPath()` method
+Returns `path()` relative to `rootPath()`
 
-#### `WalkEntry::relPath(from)`
-Returns `path.relative(from||this.rootPath, this.path)`
-
-#### `WalkEntry::modeKey()`
+#### `WalkEntry::modeKey()` method
 Returns a string constant depending upon the entry file mode.
 
-#### `WalkEntry::isFile()`
+#### `WalkEntry::isFile()` method
 Returns `true` if the entry is a file.
 
-#### `WalkEntry::isDirectory()`
+#### `WalkEntry::isDirectory()` method
 Returns `true` if the entry is a directory.
 
-#### `WalkEntry::isWalkable()`
+#### `WalkEntry::isWalkable()` method
 Returns `true` if not excluded and is a directory
 
-#### `WalkEntry::walk(force)`
+#### `WalkEntry::walk(force)` method
 Starts a new walk using the entry's path if it is walkable. See `WalkRoot::walk`.
 
-#### `WalkEntry::match(rx, ctx)`
+#### `WalkEntry::match(rx, ctx)` method
 If `rx` is callable, then `return rx.call(this.name, ctx)`
 Otherwise use String::match as `return this.name.match(rx)`.
 
-#### `WalkEntry::exclude(value)`
+#### `WalkEntry::exclude(value)` method
 Mark as excluded if `!!value`, otherwise mark as included.
 
-#### `WalkEntry::accept(rx, ctx)`
+#### `WalkEntry::accept(rx, ctx)` method
 With no parameters, marks entry as included.
 Otherwise, if `match(rx, ctx)`, then `exclude(false)`
 
-#### `WalkEntry::reject(rx, ctx)`
+#### `WalkEntry::reject(rx, ctx)` method
 With no parameters, marks entry as excluded.
 Otherwise, if `match(rx, ctx)`, then `exclude(true)`
 
-#### `WalkEntry::filter(rx, ctx)`
+#### `WalkEntry::filter(rx, ctx)` method
 Invokes `exclude(match(rx, ctx))`
