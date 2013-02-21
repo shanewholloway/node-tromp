@@ -39,13 +39,13 @@ event       | args          | desc
 Starts a new walk rooted at path, creating a `WalkListing` instance if not already in progress for that path. Emits `active` events when listings are initiated or completed.
 
 #### `WalkRoot::filter(rx, ctx)` method
-Calls `entry.filter(rx,ctx)` for each `entry` event occurance
+Calls `entry.filter(rx,ctx)` for each `entry` event occurence
 
 #### `WalkRoot::accept(rx, ctx)` method
-Calls `entry.accept(rx,ctx)` for each `entry` event occurance
+Calls `entry.accept(rx,ctx)` for each `entry` event occurence
 
 #### `WalkRoot::reject(rx, ctx)` method
-Calls `entry.accept(rx,ctx)` for each `entry` event occurance
+Calls `entry.accept(rx,ctx)` for each `entry` event occurence
 
 #### `WalkRoot::autoWalk(entry)` method
 Double dispatch mechanism, defaulting to `entry.walk()`
