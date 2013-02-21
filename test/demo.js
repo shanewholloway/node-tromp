@@ -5,14 +5,17 @@ var tromp = require('../tromp'),
 
 testObj = tromp(testDir)
   .reject(/node_modules|build|dist/)
-  .on('listed', function (node) {
-    console.log({
-      base: node.base(),
-      files: node.files(),
-      dirs: node.dirs()})
+  .on('file', function (entry) {
+    console.log('evt file:', entry)
   })
-  .on('active', function (active) {
-      console.log('active?', active)
+  .on('dir', function (entry) {
+    console.log('evt dir:', entry)
+  })
+  .on('listed', function (node) {
+    console.log('evt listed:', node.toJSON())
+  })
+  .on('active', function (active, delta) {
+      console.log('evt active:', active, delta)
   })
 
 if (0)

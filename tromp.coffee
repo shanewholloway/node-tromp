@@ -1,56 +1,36 @@
+# -*- coding: utf-8 -*- vim: set ts=2 sw=2 expandtab
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
+##~ Copyright (C) 2002-2013  TechGame Networks, LLC.              ##
+##~                                                               ##
+##~ This library is free software; you can redistribute it        ##
+##~ and/or modify it under the terms of the MIT style License as  ##
+##~ found in the LICENSE file included with this distribution.    ##
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
+
 fs = require 'fs'
 path = require 'path'
 events = require 'events'
 
-class WalkFuncComp extends Array
-  constructor: -> super
-
-  any: () -> @anyEx(arguments)
-  anyEx: (optList) ->
-    fnList = []
-    for opt in optList
-      @addFilterFn opt
-    return (e)=> @some (fn)-> fn.call(this, e)
-
-  all: () -> @allEx(arguments)
-  allEx: (optList) ->
-    for opt in optList
-      @addFilterFn opt
-    return (e)=> @every (fn)-> fn.call(this, e)
-
-  addFilterFn: (opt) ->
-    if opt.call?
-      return @push opt
-    if opt.match?
-      @push (e)-> e.match(opt.match)
-    if opt.accept?
-      @push (e)-> e.accept(opt.accept)
-    if opt.reject?
-      @push (e)-> not e.reject(opt.reject)
-
-    if not opt.allFiles
-      @push (e)-> not e.excluded
-    if opt.isFile
-      @push (e)-> e.isFile()
-    if opt.isDirectory
-      @push (e)-> e.isDirectory()
-
 class WalkEntry
   Object.defineProperties @prototype,
-    node:
-      writable: true
-      enumerable: false
-    root:
-      get: -> @node.root
-      enumerable: false
+    root:{get:-> @listing.root}
+    path:{get:-> path.resolve(@listing.path, @name)}
+    rootPath:{get:-> @listing.rootPath}
+    relPath:{get:-> path.relative(@listing.rootPath, @path)}
 
-  constructor: (@node) -> @
-  init: (@name) -> @
-  stat: (cb) ->
+  constructor: (listing) ->
+    Object.defineProperties @,
+      listing:{value:listing, enumerable: false}
+
+  init: (name) ->
+    res = Object.create(@)
+    res.name = name
+    return res
+  stat: (root, cb) ->
     if res = @_stat?
       cb?(@, stat)
     else
-      @root.fs_stat @path(), (err, stat) =>
+      root._fs_stat @path, (err, stat) =>
         Object.defineProperty @, '_stat',
           value: stat, enumerable: false
         if err
@@ -58,7 +38,12 @@ class WalkEntry
         cb?(@, stat)
     return @
 
-  path: -> path.resolve @node._path, @name
+  modeKey: ()->
+    stat = @_stat
+    return 'unknown' if not stat?
+    return 'file' if stat.isFile()
+    return 'dir' if stat.isDirectory()
+    return 'other'
   isFile: -> @_stat?.isFile()
   isDirectory: -> @_stat?.isDirectory()
   match: (rx, ctx) ->
@@ -86,84 +71,92 @@ class WalkEntry
       return true
     else return false
 
+  isWalkable: () ->
+    return not @excluded and @isDirectory()
   walk: () ->
-    if @excluded or not @isDirectory()
-      @root.walk(@path())
-      return true
-    else return false
-  autoWalk: () ->
-    if not @excluded and @isDirectory()
-      @root.autoWalk(@path(), @root)
-      return true
-    else return false
+    @root.walk(@path, @) if @isWalkable()
+
+  toJSON: -> @path
+  toString: -> @path
+  valueOf: -> @path
+  inspect: -> @path
 
 
-class WalkNode
+class WalkListing
   Object.defineProperties @prototype,
-    root:
-      writable: true
-      enumerable: false
-    WalkFuncComp:
-      value: WalkFuncComp
-  constructor: (@root) ->
+    listing:{get:-> @}
+    relPath:{get:-> path.relative(@rootPath, @path)}
 
-  list: (@_path, ee, done) ->
-    self = @
-    nodeEntry = new @root.WalkEntry @
-    @root.fs_readdir @_path, (err, entries) ->
+  constructor: (root, aPath, parent) ->
+    Object.defineProperties @,
+      root:{value:root, enumerable: false}
+      path:{value:aPath}
+      rootPath:
+        value:parent?.rootPath || aPath
+        enumerable: false
+
+  _performListing: (root, done) ->
+    if @_entries is not undefined
+      return false
+    self = @; @_entries = null
+    entry = new @root.WalkEntry @
+    root._fs_readdir @path, (err, entries) ->
       entries = (entries || []).map (e)->
-        Object.create(nodeEntry).init(e)
+        entry.init(e)
       self._entries = entries
-      ee.emit 'listing', self
+      root.emit 'listing', self
 
       n = entries.length
       entries.forEach (entry) ->
-        entry.stat (entry, stat)->
+        entry.stat root, (entry, stat)->
           if stat?
-            ee.emit 'entry', entry, self
-            if stat.isFile()
-              ee.emit 'file', entry, self
-            if stat.isDirectory()
-              ee.emit 'dir', entry, self
-              entry.autoWalk()
+            root.emit 'entry', entry, self
+            root.emit entry.modeKey(), entry, self
+            if entry.isWalkable()
+              root.autoWalk(entry)
           if --n is 0
-            ee.emit 'listed', self
+            root.emit 'listed', self
             done?(self)
     return self
   
-  path: () -> @_path
-  base: () -> path.relative(@root._path, @_path)
-
-  entries: () ->
-    res = @_entries
-    if not res? then return []
-    if not arguments.length
-      return res
-    fn = new @.WalkFuncComp().allEx(arguments)
-    return (e for e in res when fn(e))
-
-  filter: (rx, ctx) ->
-    @entries (e)-> e.filter(rx,ctx)
-  accept: (rx, ctx) ->
-    @entries (e)-> e.accept(rx,ctx)
-  reject: (rx, ctx) ->
-    @entries (e)-> e.reject(rx,ctx)
+  selectEx: (fnList) ->
+    res = (@_entries or [])
+    if fnList?
+      res = res.filter (entry) ->
+        fnList.every((fn)->fn(entry))
+      console.log 'res:', res
+    return res
+  select: (fnList=[]) ->
+    fnList.unshift (e)-> not e.excluded
+    return @selectEx(fnList)
 
   matching: (rx, opts...) ->
-    if rx?
-      opts.unshift {match: rx}
-    return @entries opts...
+    opts.unshift (e)-> e.match(rx)
+    return @select opts...
   files: (opts...) ->
-    opts.unshift {isFile: true}
-    return @entries opts...
+    opts.unshift (e)->e.isFile()
+    return @select opts...
   dirs: (opts...) ->
-    opts.unshift {isDirectory: true}
-    return @entries opts...
+    opts.unshift (e)->e.isDirectory()
+    return @select opts...
   walk: (opts...) ->
-    opts.unshift {isDirectory: true}
-    for d in @entries opts...
+    opts.unshift (e)->e.isDirectory()
+    for d in @select opts...
       d.walk()
     return @
+  filter: (rx, ctx) ->
+    @selectEx (e)-> e.filter(rx,ctx)
+  accept: (rx, ctx) ->
+    @selectEx (e)-> e.accept(rx,ctx)
+  reject: (rx, ctx) ->
+    @selectEx (e)-> e.reject(rx,ctx)
+
+  inspect: -> @toJSON()
+  toJSON: ->
+    res = {path:@path, relPath:@relPath, rootPath:@rootPath}
+    for e in @select()
+      (res[e.modeKey()+'s']||=[]).push e.name
+    return res
 
 
 createTaskQueue = (nTasks, schedule = process.nextTick) ->
@@ -199,27 +192,37 @@ createTaskQueue = (nTasks, schedule = process.nextTick) ->
 
 class WalkRoot extends events.EventEmitter
   WalkEntry: WalkEntry
-  WalkNode: WalkNode
-  init: (@_path, opt, schedule=process.nextTick) ->
+  WalkListing: WalkListing
+
+  constructor: (path, opt, callback) ->
     events.EventEmitter.call @
-    @opt = opt || {}
-    @queueTask = createTaskQueue(@opt.tasks || 10, schedule)
-    if not @opt.showHidden
+    if 'function' is typeof opt
+      callback = opt; opt = {}
+    else opt ||= {}
+    @on('listed', callback) if callback?
+    if not opt.showHidden
       @reject /^\./
-    schedule => @walk(@_path)
+    if opt.autoWalk?
+      @autoWalk = opt.autoWalk or (-> null)
+
+    opt.schedule ||= process.nextTick
+    @_activeWalks = [0]
+    @queueTask = createTaskQueue(opt.tasks || 10, opt.schedule)
+    if path?
+      opt.schedule => @walk(path)
     return @
 
-  _activeWalks: 0
-  walk: (aPath) ->
+  walk: (aPath, entry) ->
     aPath = path.resolve(aPath)
-    if @_activeWalks++ is 0
-      @emit 'active', true
-    new @WalkNode(@).list aPath, @, =>
-      if --@_activeWalks is 0
-        @emit 'active', false
+    track = @_activeWalks
+    if aPath not in track
+      track[aPath] = listing = new @WalkListing(@, aPath, entry)
+      @emit 'active', ++track[0], +1, track
+      listing._performListing @, =>
+        delete track[aPath]
+        @emit 'active', --track[0], -1, track
 
-  autoWalk: (aPath, root) ->
-    root.walk(aPath)
+  autoWalk: (entry) -> entry.walk()
 
   filter: (rx, ctx) ->
     if rx?
@@ -234,21 +237,17 @@ class WalkRoot extends events.EventEmitter
       @on 'entry', (e)-> e.reject(rx, ctx)
     return @
 
-  fs_stat: (aPath, cb) ->
-    @queueTask cb, (cb) ->
-      fs.stat aPath, cb
-
-  fs_readdir: (aPath, cb) ->
-    @queueTask cb, (cb) ->
-      fs.readdir aPath, cb
+  _fs_stat: (aPath, cb) ->
+    @queueTask cb, (cb) -> fs.stat aPath, cb
+  _fs_readdir: (aPath, cb) ->
+    @queueTask cb, (cb) -> fs.readdir aPath, cb
 
 
-tromp = (args...) ->
-  new tromp.WalkRoot().init(args...)
+tromp = (path, opt, callback) ->
+  new tromp.WalkRoot(path, opt, callback)
 
-tromp.WalkFuncComp = WalkFuncComp
 tromp.WalkRoot = WalkRoot
 tromp.WalkEntry = WalkEntry
-tromp.WalkNode = WalkNode
+tromp.WalkListing = WalkListing
 module.exports = tromp.tromp = tromp
 
