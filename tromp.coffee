@@ -18,13 +18,13 @@ class WalkEntry
 
   create: (name) ->
     Object.create(@, name:{value:name})
-  stat: (root, cb) ->
+  stat: (root, done) ->
     if not @_stat?
       root._fs_stat @path(), (err, stat) =>
         Object.defineProperty @, '_stat',
           value: stat, enumerable: false
-        cb?(err, @, stat)
-    else cb?(null, @, stat)
+        done?(err, @, stat)
+    else done?(null, @, stat)
     return @
 
   path: -> @node.resolve(@name)
@@ -101,11 +101,12 @@ class WalkListing
           if err?
             root.error?('fs.stat', err, entry, self)
           if stat?
-            root.emit 'entry:filter', entry, self
-            root.emit 'entry', entry, self
-            root.emit entry.modeKey(), entry, self
-            if entry.isWalkable()
-              root.autoWalk(entry)
+            root.emit 'filter', entry, self
+            if not entry.excluded
+              root.emit 'entry', entry, self
+              root.emit entry.modeKey(), entry, self
+              if entry.isWalkable()
+                root.autoWalk(entry)
           if --n is 0
             root.emit 'listed', self
             done?(self)
@@ -235,15 +236,15 @@ class WalkRoot extends events.EventEmitter
 
   filter: (rx, ctx) ->
     if rx?
-      @on 'entry:filter', (e)-> e.filter(rx, ctx)
+      @on 'filter', (e)-> e.filter(rx, ctx)
     return @
   accept: (rx, ctx) ->
     if rx?
-      @on 'entry:filter', (e)-> e.accept(rx, ctx)
+      @on 'filter', (e)-> e.accept(rx, ctx)
     return @
   reject: (rx, ctx) ->
     if rx?
-      @on 'entry:filter', (e)-> e.reject(rx, ctx)
+      @on 'filter', (e)-> e.reject(rx, ctx)
     return @
 
   _fs_stat: (aPath, cb) ->

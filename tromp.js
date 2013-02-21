@@ -28,7 +28,7 @@ WalkEntry = (function() {
     });
   };
 
-  WalkEntry.prototype.stat = function(root, cb) {
+  WalkEntry.prototype.stat = function(root, done) {
     var _this = this;
     if (!(this._stat != null)) {
       root._fs_stat(this.path(), function(err, stat) {
@@ -36,11 +36,11 @@ WalkEntry = (function() {
           value: stat,
           enumerable: false
         });
-        return typeof cb === "function" ? cb(err, _this, stat) : void 0;
+        return typeof done === "function" ? done(err, _this, stat) : void 0;
       });
     } else {
-      if (typeof cb === "function") {
-        cb(null, this, stat);
+      if (typeof done === "function") {
+        done(null, this, stat);
       }
     }
     return this;
@@ -204,11 +204,13 @@ WalkListing = (function() {
             }
           }
           if (stat != null) {
-            root.emit('entry:filter', entry, self);
-            root.emit('entry', entry, self);
-            root.emit(entry.modeKey(), entry, self);
-            if (entry.isWalkable()) {
-              root.autoWalk(entry);
+            root.emit('filter', entry, self);
+            if (!entry.excluded) {
+              root.emit('entry', entry, self);
+              root.emit(entry.modeKey(), entry, self);
+              if (entry.isWalkable()) {
+                root.autoWalk(entry);
+              }
             }
           }
           if (--n === 0) {
@@ -479,7 +481,7 @@ WalkRoot = (function(_super) {
 
   WalkRoot.prototype.filter = function(rx, ctx) {
     if (rx != null) {
-      this.on('entry:filter', function(e) {
+      this.on('filter', function(e) {
         return e.filter(rx, ctx);
       });
     }
@@ -488,7 +490,7 @@ WalkRoot = (function(_super) {
 
   WalkRoot.prototype.accept = function(rx, ctx) {
     if (rx != null) {
-      this.on('entry:filter', function(e) {
+      this.on('filter', function(e) {
         return e.accept(rx, ctx);
       });
     }
@@ -497,7 +499,7 @@ WalkRoot = (function(_super) {
 
   WalkRoot.prototype.reject = function(rx, ctx) {
     if (rx != null) {
-      this.on('entry:filter', function(e) {
+      this.on('filter', function(e) {
         return e.reject(rx, ctx);
       });
     }
