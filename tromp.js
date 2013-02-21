@@ -28,11 +28,6 @@ WalkEntry = (function() {
       get: function() {
         return this.listing.rootPath;
       }
-    },
-    relPath: {
-      get: function() {
-        return path.relative(this.listing.rootPath, this.path);
-      }
     }
   });
 
@@ -72,6 +67,10 @@ WalkEntry = (function() {
       });
     }
     return this;
+  };
+
+  WalkEntry.prototype.relPath = function(from) {
+    return path.relative(from || this.rootPath, this.path);
   };
 
   WalkEntry.prototype.modeKey = function() {
@@ -150,20 +149,20 @@ WalkEntry = (function() {
     }
   };
 
-  WalkEntry.prototype.toJSON = function() {
-    return this.path;
-  };
-
   WalkEntry.prototype.toString = function() {
     return this.path;
   };
 
+  WalkEntry.prototype.toJSON = function() {
+    return this.toString();
+  };
+
   WalkEntry.prototype.valueOf = function() {
-    return this.path;
+    return this.toString();
   };
 
   WalkEntry.prototype.inspect = function() {
-    return this.path;
+    return this.relPath();
   };
 
   return WalkEntry;
@@ -176,11 +175,6 @@ WalkListing = (function() {
     listing: {
       get: function() {
         return this;
-      }
-    },
-    relPath: {
-      get: function() {
-        return path.relative(this.rootPath, this.path);
       }
     }
   });
@@ -200,6 +194,10 @@ WalkListing = (function() {
       }
     });
   }
+
+  WalkListing.prototype.relPath = function(from) {
+    return path.relative(from || this.rootPath, this.path);
+  };
 
   WalkListing.prototype._performListing = function(root, done) {
     var entry, self;
@@ -245,7 +243,6 @@ WalkListing = (function() {
           return fn(entry);
         });
       });
-      console.log('res:', res);
     }
     return res;
   };
@@ -327,8 +324,7 @@ WalkListing = (function() {
     var e, res, _i, _len, _name, _ref;
     res = {
       path: this.path,
-      relPath: this.relPath,
-      rootPath: this.rootPath
+      relPath: this.relPath()
     };
     _ref = this.select();
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {

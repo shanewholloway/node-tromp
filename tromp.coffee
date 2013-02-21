@@ -16,7 +16,6 @@ class WalkEntry
     root:{get:-> @listing.root}
     path:{get:-> path.resolve(@listing.path, @name)}
     rootPath:{get:-> @listing.rootPath}
-    relPath:{get:-> path.relative(@listing.rootPath, @path)}
 
   constructor: (listing) ->
     Object.defineProperties @,
@@ -37,6 +36,8 @@ class WalkEntry
           console.error 'statError:', err, stat
         cb?(@, stat)
     return @
+
+  relPath: (from)-> path.relative(from || @rootPath, @path)
 
   modeKey: ()->
     stat = @_stat
@@ -76,16 +77,15 @@ class WalkEntry
   walk: (force) ->
     @root.walk(@path, @) if @isWalkable(force)
 
-  toJSON: -> @path
   toString: -> @path
-  valueOf: -> @path
-  inspect: -> @path
+  toJSON: -> @toString()
+  valueOf: -> @toString()
+  inspect: -> @relPath()
 
 
 class WalkListing
   Object.defineProperties @prototype,
     listing:{get:-> @}
-    relPath:{get:-> path.relative(@rootPath, @path)}
 
   constructor: (root, aPath, parent) ->
     Object.defineProperties @,
@@ -94,6 +94,8 @@ class WalkListing
       rootPath:
         value:parent?.rootPath || aPath
         enumerable: false
+
+  relPath: (from)-> path.relative(from || @rootPath, @path)
 
   _performListing: (root, done) ->
     if @_entries is not undefined
@@ -124,7 +126,6 @@ class WalkListing
     if fnList?
       res = res.filter (entry) ->
         fnList.every((fn)->fn(entry))
-      console.log 'res:', res
     return res
   select: (fnList=[]) ->
     fnList.unshift (e)-> not e.excluded
@@ -153,7 +154,7 @@ class WalkListing
 
   inspect: -> @toJSON()
   toJSON: ->
-    res = {path:@path, relPath:@relPath, rootPath:@rootPath}
+    res = {path:@path, relPath:@relPath()}
     for e in @select()
       (res[e.modeKey()+'s']||=[]).push e.name
     return res

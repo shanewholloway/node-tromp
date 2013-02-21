@@ -11,8 +11,8 @@ testObj = tromp(testDir)
   .on('dir', function (entry) {
     console.log('evt dir:', entry)
   })
-  .on('listed', function (node) {
-    console.log('evt listed:', node.toJSON())
+  .on('listed', function (listing) {
+    console.log('evt listed:', listing.inspect())
   })
   .on('active', function (active, delta) {
       console.log('evt active:', active, delta)

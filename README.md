@@ -3,18 +3,12 @@ Tromp is an asynchronous filesystem directory walking algorithm with events and 
 ## Use
 
 ```javascript
-
 var tromp = require('tromp')
 
 tromp('.')
   .reject(/node_modules/)
-  .on('listed', function (node) {
-    console.log({
-      base: node.base(),
-      files: node.files(),
-      dirs: node.dirs()})
-  })
-
+  .on('listed', function (listing) {
+    console.log(listing.inspect()) })
 ```
 
 ## API
@@ -67,8 +61,10 @@ listing   | `this`
 path      | string path being listed
 root      | connected `WalkRoot` instance via `listing` property
 rootPath  | path initially responsible for causing this listing
-relPath   | `path.relative(this.rootPath, this.path)`
 
+
+#### `WalkListing::relPath(from)`
+Returns `path.relative(from||this.rootPath, this.path)`
 
 #### `WalkListing::select(fnList)`
 Returns all entries not already excluded matching every function in `fnList`
@@ -104,7 +100,9 @@ listing   | connected `WalkListing` instance
 path      | `path.resolve(this.listing.path, this.name)`
 root      | connected `WalkRoot` instance via `listing` property
 rootPath  | path initially responsible for causing this listing
-relPath   | `path.relative(this.rootPath, this.path)`
+
+#### `WalkEntry::relPath(from)`
+Returns `path.relative(from||this.rootPath, this.path)`
 
 #### `WalkEntry::modeKey()`
 Returns a string constant depending upon the entry file mode.
