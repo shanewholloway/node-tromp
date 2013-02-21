@@ -101,6 +101,7 @@ class WalkListing
           if err?
             root.error?('fs.stat', err, entry, self)
           if stat?
+            root.emit 'entry:filter', entry, self
             root.emit 'entry', entry, self
             root.emit entry.modeKey(), entry, self
             if entry.isWalkable()
@@ -234,15 +235,15 @@ class WalkRoot extends events.EventEmitter
 
   filter: (rx, ctx) ->
     if rx?
-      @on 'entry', (e)-> e.filter(rx, ctx)
+      @on 'entry:filter', (e)-> e.filter(rx, ctx)
     return @
   accept: (rx, ctx) ->
     if rx?
-      @on 'entry', (e)-> e.accept(rx, ctx)
+      @on 'entry:filter', (e)-> e.accept(rx, ctx)
     return @
   reject: (rx, ctx) ->
     if rx?
-      @on 'entry', (e)-> e.reject(rx, ctx)
+      @on 'entry:filter', (e)-> e.reject(rx, ctx)
     return @
 
   _fs_stat: (aPath, cb) ->

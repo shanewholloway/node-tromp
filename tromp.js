@@ -204,6 +204,7 @@ WalkListing = (function() {
             }
           }
           if (stat != null) {
+            root.emit('entry:filter', entry, self);
             root.emit('entry', entry, self);
             root.emit(entry.modeKey(), entry, self);
             if (entry.isWalkable()) {
@@ -478,7 +479,7 @@ WalkRoot = (function(_super) {
 
   WalkRoot.prototype.filter = function(rx, ctx) {
     if (rx != null) {
-      this.on('entry', function(e) {
+      this.on('entry:filter', function(e) {
         return e.filter(rx, ctx);
       });
     }
@@ -487,7 +488,7 @@ WalkRoot = (function(_super) {
 
   WalkRoot.prototype.accept = function(rx, ctx) {
     if (rx != null) {
-      this.on('entry', function(e) {
+      this.on('entry:filter', function(e) {
         return e.accept(rx, ctx);
       });
     }
@@ -496,7 +497,7 @@ WalkRoot = (function(_super) {
 
   WalkRoot.prototype.reject = function(rx, ctx) {
     if (rx != null) {
-      this.on('entry', function(e) {
+      this.on('entry:filter', function(e) {
         return e.reject(rx, ctx);
       });
     }

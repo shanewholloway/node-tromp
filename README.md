@@ -26,26 +26,27 @@ arg                   | desc
 `options.tasks`       | number of concurrent filesystem operations in flight at once
 `callback`            | when provided, the function is added to `.on('listed', callback)`
 
-event       | args          | desc
------       | ----          | ----
-`'active'`  | count, delta  | When `WalkRoot` starts and stops walk a root
-`'listing'` | node          | When entries have been received, but before entries have started `fs.stat`
-`'listed'`  | node          | After all entries have completed `fs.stat`
-`'entry'`   | entry, node   | After each `WalkEntry`'s completes `fs.stat`
-`'file'`    | entry, node   | After `'entry'` event, but filtered for files
-`'dir'`     | entry, node   | After `'entry'` event, but filtered for directories
+event             | args          | desc
+-----             | ----          | ----
+`'active'`        | count, delta  | When `WalkRoot` starts and stops walk a root
+`'listing'`       | node          | When entries have been received, but before entries have started `fs.stat`
+`'listed'`        | node          | After all entries have completed `fs.stat`
+`'entry:filter'`  | entry, node   | After each `WalkEntry`'s completes `fs.stat`, but before `entry` event
+`'entry'`         | entry, node   | After each `WalkEntry`'s completes `fs.stat`
+`'file'`          | entry, node   | After `'entry'` event, but filtered for files
+`'dir'`           | entry, node   | After `'entry'` event, but filtered for directories
 
 #### `WalkRoot::walk(path)` method
 Starts a new walk rooted at path, creating a `WalkListing` instance if not already in progress for that path. Emits `active` events when listings are initiated or completed.
 
 #### `WalkRoot::filter(rx, ctx)` method
-Calls `entry.filter(rx,ctx)` for each `entry` event occurence
+Calls `entry.filter(rx,ctx)` for each `entry:filter` event occurence
 
 #### `WalkRoot::accept(rx, ctx)` method
-Calls `entry.accept(rx,ctx)` for each `entry` event occurence
+Calls `entry.accept(rx,ctx)` for each `entry:filter` event occurence
 
 #### `WalkRoot::reject(rx, ctx)` method
-Calls `entry.accept(rx,ctx)` for each `entry` event occurence
+Calls `entry.accept(rx,ctx)` for each `entry:filter` event occurence
 
 #### `WalkRoot::autoWalk(entry)` method
 Double dispatch mechanism, defaulting to `entry.walk()`
