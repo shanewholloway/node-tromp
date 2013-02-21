@@ -160,9 +160,7 @@ class WalkListing
 
 
 createTaskQueue = (nTasks, schedule = process.nextTick) ->
-  n = 0
-  fnq = []
-  _active = false
+  n = 0; fnq = []; _active = false
   step = (c) ->
     if c?
       n -= c
@@ -189,6 +187,7 @@ createTaskQueue = (nTasks, schedule = process.nextTick) ->
     nTasks = n
     return step(0)
   return queueTask
+
 
 class WalkRoot extends events.EventEmitter
   WalkEntry: WalkEntry

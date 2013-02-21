@@ -236,7 +236,7 @@ WalkListing = (function() {
     return self;
   };
 
-  WalkListing.prototype._select = function(fnList) {
+  WalkListing.prototype.selectEx = function(fnList) {
     var res;
     res = this._entries || [];
     if (fnList != null) {
@@ -257,7 +257,7 @@ WalkListing = (function() {
     fnList.unshift(function(e) {
       return !e.excluded;
     });
-    return this._select(fnList);
+    return this.selectEx(fnList);
   };
 
   WalkListing.prototype.matching = function() {
@@ -302,19 +302,19 @@ WalkListing = (function() {
   };
 
   WalkListing.prototype.filter = function(rx, ctx) {
-    return this._select(function(e) {
+    return this.selectEx(function(e) {
       return e.filter(rx, ctx);
     });
   };
 
   WalkListing.prototype.accept = function(rx, ctx) {
-    return this._select(function(e) {
+    return this.selectEx(function(e) {
       return e.accept(rx, ctx);
     });
   };
 
   WalkListing.prototype.reject = function(rx, ctx) {
-    return this._select(function(e) {
+    return this.selectEx(function(e) {
       return e.reject(rx, ctx);
     });
   };
