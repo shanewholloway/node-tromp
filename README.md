@@ -57,7 +57,18 @@ Calls `entry.accept(rx,ctx)` for each `entry` event occurance
 Double dispatch mechanism, defaulting to `entry.walk()`
 
 
+
 ### `class WalkListing`
+Encapsulates the active process of listing a directory and stating all of the entries so they can be categorized.
+
+property  | description
+----------|-------------
+listing   | `this`
+path      | string path being listed
+root      | connected `WalkRoot` instance via `listing` property
+rootPath  | path initially responsible for causing this listing
+relPath   | `path.relative(this.rootPath, this.path)`
+
 
 #### `WalkListing::select(fnList)`
 Returns all entries not already excluded matching every function in `fnList`
@@ -81,5 +92,49 @@ Invokes `entry.accept(rx, ctx)` against all listing entries.
 #### `WalkListing::reject(opts...)`
 Invokes `entry.reject(rx, ctx)` against all listing entries.
 
-### `class WalkEntry`
 
+
+### `class WalkEntry`
+An manipulable object representing and entry of the `WalkListing`.
+
+property  | description
+----------|-------------
+name      | entry basename
+listing   | connected `WalkListing` instance
+path      | `path.resolve(this.listing.path, this.name)`
+root      | connected `WalkRoot` instance via `listing` property
+rootPath  | path initially responsible for causing this listing
+relPath   | `path.relative(this.rootPath, this.path)`
+
+#### `WalkEntry::modeKey()`
+Returns a string constant depending upon the entry file mode.
+
+#### `WalkEntry::isFile()`
+Returns `true` if the entry is a file.
+
+#### `WalkEntry::isDirectory()`
+Returns `true` if the entry is a directory.
+
+#### `WalkEntry::isWalkable()`
+Returns `true` if not excluded and is a directory
+
+#### `WalkEntry::walk(force)`
+Starts a new walk using the entry's path if it is walkable. See `WalkRoot::walk`.
+
+#### `WalkEntry::match(rx, ctx)`
+If `rx` is callable, then `return rx.call(this.name, ctx)`
+Otherwise use String::match as `return this.name.match(rx)`.
+
+#### `WalkEntry::exclude(value)`
+Mark as excluded if `!!value`, otherwise mark as included.
+
+#### `WalkEntry::accept(rx, ctx)`
+With no parameters, marks entry as included.
+Otherwise, if `match(rx, ctx)`, then `exclude(false)`
+
+#### `WalkEntry::reject(rx, ctx)`
+With no parameters, marks entry as excluded.
+Otherwise, if `match(rx, ctx)`, then `exclude(true)`
+
+#### `WalkEntry::filter(rx, ctx)`
+Invokes `exclude(match(rx, ctx))`

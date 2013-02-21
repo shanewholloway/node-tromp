@@ -140,12 +140,12 @@ WalkEntry = (function() {
     }
   };
 
-  WalkEntry.prototype.isWalkable = function() {
-    return !this.excluded && this.isDirectory();
+  WalkEntry.prototype.isWalkable = function(include) {
+    return (include || !this.excluded) && this.isDirectory();
   };
 
-  WalkEntry.prototype.walk = function() {
-    if (this.isWalkable()) {
+  WalkEntry.prototype.walk = function(force) {
+    if (this.isWalkable(force)) {
       return this.root.walk(this.path, this);
     }
   };

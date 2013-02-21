@@ -71,10 +71,10 @@ class WalkEntry
       return true
     else return false
 
-  isWalkable: () ->
-    return not @excluded and @isDirectory()
-  walk: () ->
-    @root.walk(@path, @) if @isWalkable()
+  isWalkable: (include) ->
+    return (include or not @excluded) and @isDirectory()
+  walk: (force) ->
+    @root.walk(@path, @) if @isWalkable(force)
 
   toJSON: -> @path
   toString: -> @path
