@@ -210,7 +210,6 @@ class WalkRoot extends events.EventEmitter
       @autoWalk = opt.autoWalk or (-> null)
 
     opt.schedule ||= process.nextTick
-    @_activeWalks = [0]
     @_node = new @.WalkNode(@)
     @queueTask = createTaskQueue(opt.tasks || 10, opt.schedule)
     if path?
@@ -221,7 +220,7 @@ class WalkRoot extends events.EventEmitter
     if aPath.isWalkable?()
       entry = aPath; aPath = entry.path
     aPath = path.resolve(aPath)
-    track = @_activeWalks
+    track = (@_activeWalks ||= [0])
     if aPath not in track
       track[aPath] = node = @_node.create(aPath, entry)
       if track[0] is 0
@@ -231,9 +230,14 @@ class WalkRoot extends events.EventEmitter
         delete track[aPath]
         @emit 'active', --track[0], -1, track
         if track[0] is 0
-          @emit 'done'
+          @emit('done')
 
   autoWalk: (entry) -> entry.walk()
+
+  done: (callback)->
+    if 0 is @_activeWalks?[0]
+      callback()
+    else @once('done', callback)
 
   filter: (rx, ctx) ->
     if rx?

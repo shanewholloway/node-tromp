@@ -15,7 +15,10 @@ testObj = tromp(testDir)
     console.log('evt listed:', listing.inspect())
   })
   .on('active', function (active, delta) {
-      console.log('evt active:', active, delta)
+    console.log('evt active:', active, delta)
+  })
+  .done(function() {
+    console.log('callback done')
   })
 
 if (0)

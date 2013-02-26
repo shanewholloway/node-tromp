@@ -115,9 +115,14 @@ WalkEntry = (function() {
     return (include || !this.excluded) && this.isDirectory();
   };
 
-  WalkEntry.prototype.walk = function(force) {
-    if (this.isWalkable(force)) {
-      return this.node.root.walk(this.path, this);
+  WalkEntry.prototype.walk = function(opt) {
+    var root;
+    if (opt == null) {
+      opt = {};
+    }
+    if (this.isWalkable(opt.force)) {
+      root = opt.root || this.node.root;
+      return root.walk(this.path, this);
     }
   };
 
@@ -451,7 +456,6 @@ WalkRoot = (function(_super) {
       });
     }
     opt.schedule || (opt.schedule = process.nextTick);
-    this._activeWalks = [0];
     this._node = new this.WalkNode(this);
     this.queueTask = createTaskQueue(opt.tasks || 10, opt.schedule);
     if (path != null) {
@@ -470,7 +474,7 @@ WalkRoot = (function(_super) {
       aPath = entry.path;
     }
     aPath = path.resolve(aPath);
-    track = this._activeWalks;
+    track = (this._activeWalks || (this._activeWalks = [0]));
     if (__indexOf.call(track, aPath) < 0) {
       track[aPath] = node = this._node.create(aPath, entry);
       if (track[0] === 0) {
@@ -489,6 +493,15 @@ WalkRoot = (function(_super) {
 
   WalkRoot.prototype.autoWalk = function(entry) {
     return entry.walk();
+  };
+
+  WalkRoot.prototype.done = function(callback) {
+    var _ref;
+    if (0 === ((_ref = this._activeWalks) != null ? _ref[0] : void 0)) {
+      return callback();
+    } else {
+      return this.once('done', callback);
+    }
   };
 
   WalkRoot.prototype.filter = function(rx, ctx) {
