@@ -28,24 +28,6 @@ WalkEntry = (function() {
     });
   };
 
-  WalkEntry.prototype.stat = function(root, done) {
-    var _this = this;
-    if (!(this._stat != null)) {
-      root._fs_stat(this.path(), function(err, stat) {
-        Object.defineProperty(_this, '_stat', {
-          value: stat,
-          enumerable: false
-        });
-        return typeof done === "function" ? done(err, _this, stat) : void 0;
-      });
-    } else {
-      if (typeof done === "function") {
-        done(null, this, stat);
-      }
-    }
-    return this;
-  };
-
   WalkEntry.prototype.path = function() {
     return this.node.resolve(this.name);
   };
@@ -60,7 +42,7 @@ WalkEntry = (function() {
 
   WalkEntry.prototype.modeKey = function() {
     var stat;
-    stat = this._stat;
+    stat = this.stat;
     if (!(stat != null)) {
       return 'unknown';
     }
@@ -75,12 +57,12 @@ WalkEntry = (function() {
 
   WalkEntry.prototype.isFile = function() {
     var _ref;
-    return (_ref = this._stat) != null ? _ref.isFile() : void 0;
+    return (_ref = this.stat) != null ? _ref.isFile() : void 0;
   };
 
   WalkEntry.prototype.isDirectory = function() {
     var _ref;
-    return (_ref = this._stat) != null ? _ref.isDirectory() : void 0;
+    return (_ref = this.stat) != null ? _ref.isDirectory() : void 0;
   };
 
   WalkEntry.prototype.match = function(rx, ctx) {
@@ -197,7 +179,11 @@ WalkListing = (function() {
       root.emit('listing', self);
       n = entries.length;
       return entries.forEach(function(entry) {
-        return entry.stat(root, function(err, entry, stat) {
+        return root._fs_stat(entry.path(), function(err, stat) {
+          Object.defineProperty(entry, 'stat', {
+            value: stat,
+            enumerable: false
+          });
           if (err != null) {
             if (typeof root.error === "function") {
               root.error('fs.stat', err, entry, self);

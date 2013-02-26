@@ -18,27 +18,18 @@ class WalkEntry
 
   create: (name) ->
     Object.create(@, name:{value:name})
-  stat: (root, done) ->
-    if not @_stat?
-      root._fs_stat @path(), (err, stat) =>
-        Object.defineProperty @, '_stat',
-          value: stat, enumerable: false
-        done?(err, @, stat)
-    else done?(null, @, stat)
-    return @
-
   path: -> @node.resolve(@name)
   relPath: -> @node.relative @path()
   rootPath: -> @node.rootPath
 
   modeKey: ()->
-    stat = @_stat
+    stat = @stat
     return 'unknown' if not stat?
     return 'file' if stat.isFile()
     return 'dir' if stat.isDirectory()
     return 'other'
-  isFile: -> @_stat?.isFile()
-  isDirectory: -> @_stat?.isDirectory()
+  isFile: -> @stat?.isFile()
+  isDirectory: -> @stat?.isDirectory()
   match: (rx, ctx) ->
     return null if not rx?
     return rx.call(ctx, @.name) if rx.call?
@@ -97,7 +88,8 @@ class WalkListing
 
       n = entries.length
       entries.forEach (entry) ->
-        entry.stat root, (err, entry, stat)->
+        root._fs_stat entry.path(), (err, stat) ->
+          Object.defineProperty entry, 'stat', {value:stat, enumerable:false}
           if err?
             root.error?('fs.stat', err, entry, self)
           if stat?
