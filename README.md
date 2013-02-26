@@ -29,6 +29,8 @@ arg                   | desc
 event             | args          | desc
 -----             | ----          | ----
 `'active'`        | count, delta  | When `WalkRoot` starts and stops walk a root
+`'start'`         |               | Emitted when `active` is greater than 0
+`'done'`          |               | Emitted when `active` returns to 0
 `'listing'`       | node          | When entries have been received, but before entries have started `fs.stat`
 `'listed'`        | node          | After all entries have completed `fs.stat`
 `'filter'`        | entry, node   | After each `WalkEntry`'s completes `fs.stat`, but before `entry` event

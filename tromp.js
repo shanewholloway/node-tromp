@@ -130,7 +130,7 @@ WalkEntry = (function() {
 
   WalkEntry.prototype.walk = function(force) {
     if (this.isWalkable(force)) {
-      return this.node.root.walk(this.path(), this.node);
+      return this.node.root.walk(this.path(), this);
     }
   };
 
@@ -391,13 +391,16 @@ WalkNode = (function() {
     });
   }
 
-  WalkNode.prototype.create = function(listPath, parentNode) {
+  WalkNode.prototype.create = function(listPath, entry) {
     return Object.create(this, {
       listPath: {
         value: listPath
       },
       rootPath: {
-        value: (parentNode != null ? parentNode.rootPath : void 0) || listPath
+        value: (entry != null ? entry.rootPath() : void 0) || listPath
+      },
+      entry: {
+        value: entry
       }
     });
   };
@@ -460,17 +463,27 @@ WalkRoot = (function(_super) {
     return this;
   }
 
-  WalkRoot.prototype.walk = function(aPath, parentNode) {
+  WalkRoot.prototype.walk = function(aPath, entry) {
     var node, track,
       _this = this;
+    if (typeof aPath.isWalkable === "function" ? aPath.isWalkable() : void 0) {
+      entry = aPath;
+      aPath = entry.path();
+    }
     aPath = path.resolve(aPath);
     track = this._activeWalks;
     if (__indexOf.call(track, aPath) < 0) {
-      track[aPath] = node = this._node.create(aPath, parentNode);
+      track[aPath] = node = this._node.create(aPath, entry);
+      if (track[0] === 0) {
+        this.emit('start');
+      }
       this.emit('active', ++track[0], +1, track);
-      return node._performListing(node, function() {
+      return node._performListing(function() {
         delete track[aPath];
-        return _this.emit('active', --track[0], -1, track);
+        _this.emit('active', --track[0], -1, track);
+        if (track[0] === 0) {
+          return _this.emit('done');
+        }
       });
     }
   };

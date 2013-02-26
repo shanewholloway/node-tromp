@@ -65,7 +65,7 @@ class WalkEntry
   isWalkable: (include) ->
     return (include or not @excluded) and @isDirectory()
   walk: (force) ->
-    @node.root.walk(@path(), @node) if @isWalkable(force)
+    @node.root.walk(@path(), @) if @isWalkable(force)
 
   toString: -> @path()
   toJSON: -> @toString()
@@ -189,10 +189,11 @@ class WalkNode
     Object.defineProperties @,
       root:{value:root, enumerable: false}
 
-  create: (listPath, parentNode) ->
+  create: (listPath, entry) ->
     return Object.create @,
       listPath:{value: listPath}
-      rootPath:{value: parentNode?.rootPath || listPath}
+      rootPath:{value: entry?.rootPath() || listPath}
+      entry:{value: entry}
 
   _performListing: (done) ->
     new @.WalkListing(@)._performListing(@root, done)
@@ -222,15 +223,21 @@ class WalkRoot extends events.EventEmitter
       opt.schedule => @walk(path)
     return @
 
-  walk: (aPath, parentNode) ->
+  walk: (aPath, entry) ->
+    if aPath.isWalkable?()
+      entry = aPath; aPath = entry.path()
     aPath = path.resolve(aPath)
     track = @_activeWalks
     if aPath not in track
-      track[aPath] = node = @_node.create(aPath, parentNode)
+      track[aPath] = node = @_node.create(aPath, entry)
+      if track[0] is 0
+        @emit 'start'
       @emit 'active', ++track[0], +1, track
-      node._performListing node, =>
+      node._performListing =>
         delete track[aPath]
         @emit 'active', --track[0], -1, track
+        if track[0] is 0
+          @emit 'done'
 
   autoWalk: (entry) -> entry.walk()
 
