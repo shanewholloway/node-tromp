@@ -345,10 +345,16 @@ createTaskQueue = function(nTasks, schedule) {
     return nTasks - n - fnq.length;
   };
   queueTask = function(inner, outer) {
-    fnq.push(outer.bind(this, function() {
-      step(1);
-      return inner.apply(this, arguments);
-    }));
+    if (!(outer != null)) {
+      outer = inner;
+      inner = null;
+    }
+    fnq.push(function() {
+      return outer(function() {
+        step(1);
+        return inner != null ? inner.apply(this, arguments) : void 0;
+      });
+    });
     return step(0);
   };
   queueTask.clear = function() {

@@ -160,9 +160,11 @@ createTaskQueue = (nTasks, schedule = process.nextTick) ->
     return nTasks - n - fnq.length
 
   queueTask = (inner, outer) ->
-    fnq.push outer.bind this, ->
+    if not outer?
+      outer = inner; inner = null
+    fnq.push -> outer ->
       step(1)
-      inner.apply(this, arguments)
+      inner?.apply(this, arguments)
     return step(0)
   queueTask.clear = ->
     fnq.length = 0
