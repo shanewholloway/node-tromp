@@ -58,19 +58,17 @@ Double dispatch mechanism, defaulting to `entry.walk()`
 Shared context between `WalkRoot`, `WalkListing` and `WalkEntry` instances.
 
 * `root` is the managing `WalkRoot` instance.
-* `rootPath` is the path the path walking initiates from
+* `rootPath` is the path walking initiates from
 * `listPath` is the directory path of the listing
 
 
 ### WalkListing
 Encapsulates the active process of listing a directory and stating all of the entries so they can be categorized.
 
-#### `WalkEntry::path()` method
-Returns resolved path this listing represents
-#### `WalkEntry::rootPath()` method
-Returns the path initially responsible for this listing
-#### `WalkEntry::relPath()` method
-Returns `path()` relative to `rootPath()`
+* `rootPath` is the path walking initiates from
+* `path` is the directory path of the listing
+* `relPath` is `path` as relative to `rootPath`
+
 
 #### `WalkListing::select(fnList)` method
 Returns all entries not already excluded matching every function in `fnList`
@@ -99,12 +97,10 @@ Invokes `entry.reject(rx, ctx)` against all listing entries.
 ### WalkEntry
 An manipulable object representing and entry of the `WalkListing`.
 
-#### `WalkEntry::path()` method
-Returns resolved path this entry represents
-#### `WalkEntry::rootPath()` method
-Returns the path initially responsible for listing this entry
-#### `WalkEntry::relPath()` method
-Returns `path()` relative to `rootPath()`
+* `rootPath` is the path initially responsible for listing this entry
+* `path` is the resolved path this entry represents
+* `relPath` is `path` as relative to `rootPath`
+
 
 #### `WalkEntry::modeKey()` method
 Returns a string constant depending upon the entry file mode.

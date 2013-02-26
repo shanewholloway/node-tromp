@@ -12,15 +12,16 @@ path = require 'path'
 events = require 'events'
 
 class WalkEntry
+  Object.defineProperties @.prototype,
+    path: get: -> @node.resolve(@name)
+    relPath: get: -> @node.relative @path
+    rootPath: get: -> @node.rootPath
+
   constructor: (node) ->
-    Object.defineProperty @, 'node',
-      value:node, enumerable: false
+    Object.defineProperty @, 'node', value:node
 
   create: (name) ->
     Object.create(@, name:{value:name})
-  path: -> @node.resolve(@name)
-  relPath: -> @node.relative @path()
-  rootPath: -> @node.rootPath
 
   modeKey: ()->
     stat = @stat
@@ -56,29 +57,28 @@ class WalkEntry
   isWalkable: (include) ->
     return (include or not @excluded) and @isDirectory()
   walk: (force) ->
-    @node.root.walk(@path(), @) if @isWalkable(force)
+    @node.root.walk(@path, @) if @isWalkable(force)
 
-  toString: -> @path()
+  toString: -> @path
   toJSON: -> @toString()
-  valueOf: -> @toString()
-  inspect: -> @relPath()
+  inspect: -> @relPath
 
 
 class WalkListing
-  constructor: (node) ->
-    Object.defineProperty @, 'node',
-      value:node, enumerable: false
+  Object.defineProperties @.prototype,
+    path: get:-> @node.resolve()
+    relPath: get:-> @node.relative @path
+    rootPath: get:-> @node.rootPath
 
-  path: -> @node.resolve()
-  relPath: -> @node.relative @path()
-  rootPath: -> @node.rootPath
+  constructor: (node) ->
+    Object.defineProperty @, 'node', value:node
 
   _performListing: (root, done) ->
     if @_entries is not undefined
       return false
     self = @; @_entries = null
     entry = new @node.WalkEntry(@node)
-    root._fs_readdir @path(), (err, entries) ->
+    root._fs_readdir @path, (err, entries) ->
       if err?
         root.error?('fs.readdir', err, self)
       entries = (entries || []).map (e)->
@@ -88,8 +88,8 @@ class WalkListing
 
       n = entries.length
       entries.forEach (entry) ->
-        root._fs_stat entry.path(), (err, stat) ->
-          Object.defineProperty entry, 'stat', {value:stat, enumerable:false}
+        root._fs_stat entry.path, (err, stat) ->
+          Object.defineProperty entry, 'stat', {value:stat}
           if err?
             root.error?('fs.stat', err, entry, self)
           if stat?
@@ -137,13 +137,13 @@ class WalkListing
 
   inspect: -> @toJSON()
   toJSON: ->
-    res = {path:@path(), relPath:@relPath()}
+    res = {path:@path, relPath:@relPath}
     for e in @select()
       (res[e.modeKey()+'s']||=[]).push e.name
     return res
 
 
-createTaskQueue = (nTasks, schedule = process.nextTick) ->
+createTaskQueue = (nTasks=1, schedule = process.nextTick) ->
   n = 0; fnq = []; _active = false
   step = (c) ->
     if c?
@@ -181,12 +181,12 @@ class WalkNode
 
   constructor: (root) ->
     Object.defineProperties @,
-      root:{value:root, enumerable: false}
+      root:{value:root}
 
   create: (listPath, entry) ->
     return Object.create @,
       listPath:{value: listPath}
-      rootPath:{value: entry?.rootPath() || listPath}
+      rootPath:{value: entry?.rootPath || listPath}
       entry:{value: entry}
 
   _performListing: (done) ->
@@ -219,7 +219,7 @@ class WalkRoot extends events.EventEmitter
 
   walk: (aPath, entry) ->
     if aPath.isWalkable?()
-      entry = aPath; aPath = entry.path()
+      entry = aPath; aPath = entry.path
     aPath = path.resolve(aPath)
     track = @_activeWalks
     if aPath not in track

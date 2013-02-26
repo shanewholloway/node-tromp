@@ -13,10 +13,27 @@ events = require('events');
 
 WalkEntry = (function() {
 
+  Object.defineProperties(WalkEntry.prototype, {
+    path: {
+      get: function() {
+        return this.node.resolve(this.name);
+      }
+    },
+    relPath: {
+      get: function() {
+        return this.node.relative(this.path);
+      }
+    },
+    rootPath: {
+      get: function() {
+        return this.node.rootPath;
+      }
+    }
+  });
+
   function WalkEntry(node) {
     Object.defineProperty(this, 'node', {
-      value: node,
-      enumerable: false
+      value: node
     });
   }
 
@@ -26,18 +43,6 @@ WalkEntry = (function() {
         value: name
       }
     });
-  };
-
-  WalkEntry.prototype.path = function() {
-    return this.node.resolve(this.name);
-  };
-
-  WalkEntry.prototype.relPath = function() {
-    return this.node.relative(this.path());
-  };
-
-  WalkEntry.prototype.rootPath = function() {
-    return this.node.rootPath;
   };
 
   WalkEntry.prototype.modeKey = function() {
@@ -112,24 +117,20 @@ WalkEntry = (function() {
 
   WalkEntry.prototype.walk = function(force) {
     if (this.isWalkable(force)) {
-      return this.node.root.walk(this.path(), this);
+      return this.node.root.walk(this.path, this);
     }
   };
 
   WalkEntry.prototype.toString = function() {
-    return this.path();
+    return this.path;
   };
 
   WalkEntry.prototype.toJSON = function() {
     return this.toString();
   };
 
-  WalkEntry.prototype.valueOf = function() {
-    return this.toString();
-  };
-
   WalkEntry.prototype.inspect = function() {
-    return this.relPath();
+    return this.relPath;
   };
 
   return WalkEntry;
@@ -138,24 +139,29 @@ WalkEntry = (function() {
 
 WalkListing = (function() {
 
+  Object.defineProperties(WalkListing.prototype, {
+    path: {
+      get: function() {
+        return this.node.resolve();
+      }
+    },
+    relPath: {
+      get: function() {
+        return this.node.relative(this.path);
+      }
+    },
+    rootPath: {
+      get: function() {
+        return this.node.rootPath;
+      }
+    }
+  });
+
   function WalkListing(node) {
     Object.defineProperty(this, 'node', {
-      value: node,
-      enumerable: false
+      value: node
     });
   }
-
-  WalkListing.prototype.path = function() {
-    return this.node.resolve();
-  };
-
-  WalkListing.prototype.relPath = function() {
-    return this.node.relative(this.path());
-  };
-
-  WalkListing.prototype.rootPath = function() {
-    return this.node.rootPath;
-  };
 
   WalkListing.prototype._performListing = function(root, done) {
     var entry, self;
@@ -165,7 +171,7 @@ WalkListing = (function() {
     self = this;
     this._entries = null;
     entry = new this.node.WalkEntry(this.node);
-    root._fs_readdir(this.path(), function(err, entries) {
+    root._fs_readdir(this.path, function(err, entries) {
       var n;
       if (err != null) {
         if (typeof root.error === "function") {
@@ -179,10 +185,9 @@ WalkListing = (function() {
       root.emit('listing', self);
       n = entries.length;
       return entries.forEach(function(entry) {
-        return root._fs_stat(entry.path(), function(err, stat) {
+        return root._fs_stat(entry.path, function(err, stat) {
           Object.defineProperty(entry, 'stat', {
-            value: stat,
-            enumerable: false
+            value: stat
           });
           if (err != null) {
             if (typeof root.error === "function") {
@@ -298,8 +303,8 @@ WalkListing = (function() {
   WalkListing.prototype.toJSON = function() {
     var e, res, _i, _len, _name, _ref;
     res = {
-      path: this.path(),
-      relPath: this.relPath()
+      path: this.path,
+      relPath: this.relPath
     };
     _ref = this.select();
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -315,6 +320,9 @@ WalkListing = (function() {
 
 createTaskQueue = function(nTasks, schedule) {
   var fnq, n, queueTask, step, _active;
+  if (nTasks == null) {
+    nTasks = 1;
+  }
   if (schedule == null) {
     schedule = process.nextTick;
   }
@@ -377,8 +385,7 @@ WalkNode = (function() {
   function WalkNode(root) {
     Object.defineProperties(this, {
       root: {
-        value: root,
-        enumerable: false
+        value: root
       }
     });
   }
@@ -389,7 +396,7 @@ WalkNode = (function() {
         value: listPath
       },
       rootPath: {
-        value: (entry != null ? entry.rootPath() : void 0) || listPath
+        value: (entry != null ? entry.rootPath : void 0) || listPath
       },
       entry: {
         value: entry
@@ -460,7 +467,7 @@ WalkRoot = (function(_super) {
       _this = this;
     if (typeof aPath.isWalkable === "function" ? aPath.isWalkable() : void 0) {
       entry = aPath;
-      aPath = entry.path();
+      aPath = entry.path;
     }
     aPath = path.resolve(aPath);
     track = this._activeWalks;
