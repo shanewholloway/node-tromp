@@ -69,7 +69,7 @@ class WalkEntry
   walk: (target, opt={})->
     if @isWalkable(opt.force)
       root = opt.root || @node.root
-      return root.walk(@, target)
+      return root.walk(@, target||@node.target)
 
   toString: -> @path
   toJSON: -> @toString()
@@ -218,22 +218,23 @@ class WalkNode
       _fs_queue:
         value: createTaskQueue(tasks:opt.tasks || 10)
 
-  create: (listPath, entry)->
+  create: (listPath, entry, target)->
     listPath = path.resolve(listPath)
     return Object.create @,
       listPath:{value: listPath}
       rootPath:{value: entry?.rootPath || listPath}
       entry:{value: entry}
-      next:{value: @}
+      target:{value: target}
 
   newEntry: -> new @.WalkEntry(@)
-  newListing: (pathOrEntry)->
-    if pathOrEntry.isWalkable?() # it is an entry
-      self = @create(pathOrEntry.path, pathOrEntry)
-    else self = @create(pathOrEntry) # it is a path
+  newListing: (pathOrEntry, target)->
+    if pathOrEntry.isWalkable?() # is it an entry?
+      self = @create(pathOrEntry.path, pathOrEntry, target)
+    else # must be a path
+      self = @create(pathOrEntry, null, target)
     return new @.WalkListing(self)
   walk: (pathOrEntry, target)->
-    listing = @newListing(pathOrEntry)
+    listing = @newListing(pathOrEntry, target)
     @walkQueue (done)->
       listing._performListing(target, done)
     return listing

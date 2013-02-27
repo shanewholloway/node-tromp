@@ -139,7 +139,7 @@ WalkEntry = (function() {
     }
     if (this.isWalkable(opt.force)) {
       root = opt.root || this.node.root;
-      return root.walk(this, target);
+      return root.walk(this, target || this.node.target);
     }
   };
 
@@ -467,7 +467,7 @@ WalkNode = (function() {
     });
   }
 
-  WalkNode.prototype.create = function(listPath, entry) {
+  WalkNode.prototype.create = function(listPath, entry, target) {
     listPath = path.resolve(listPath);
     return Object.create(this, {
       listPath: {
@@ -479,8 +479,8 @@ WalkNode = (function() {
       entry: {
         value: entry
       },
-      next: {
-        value: this
+      target: {
+        value: target
       }
     });
   };
@@ -489,19 +489,19 @@ WalkNode = (function() {
     return new this.WalkEntry(this);
   };
 
-  WalkNode.prototype.newListing = function(pathOrEntry) {
+  WalkNode.prototype.newListing = function(pathOrEntry, target) {
     var self;
     if (typeof pathOrEntry.isWalkable === "function" ? pathOrEntry.isWalkable() : void 0) {
-      self = this.create(pathOrEntry.path, pathOrEntry);
+      self = this.create(pathOrEntry.path, pathOrEntry, target);
     } else {
-      self = this.create(pathOrEntry);
+      self = this.create(pathOrEntry, null, target);
     }
     return new this.WalkListing(self);
   };
 
   WalkNode.prototype.walk = function(pathOrEntry, target) {
     var listing;
-    listing = this.newListing(pathOrEntry);
+    listing = this.newListing(pathOrEntry, target);
     this.walkQueue(function(done) {
       return listing._performListing(target, done);
     });
