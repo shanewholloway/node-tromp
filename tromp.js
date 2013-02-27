@@ -186,7 +186,7 @@ WalkListing = (function() {
   }
 
   WalkListing.prototype._performListing = function(target, done) {
-    var entry0, listing, node;
+    var entry0, listing, node, notify;
     if (this._entries === !void 0) {
       return false;
     }
@@ -194,11 +194,16 @@ WalkListing = (function() {
     listing = this;
     node = this.node;
     entry0 = node.newEntry();
-    target.emit('listing_pre', listing);
+    if (!(typeof target === 'function')) {
+      notify = (target.walkNotify || target.emit || function() {}).bind(target);
+    } else {
+      notify = target;
+    }
+    notify('listing_pre', listing);
     node._fs_readdir(this.path, function(err, entries) {
       var n;
       if (err != null) {
-        target.emit('error', err, {
+        notify('error', err, {
           op: 'fs.readdir',
           listing: listing
         });
@@ -207,12 +212,12 @@ WalkListing = (function() {
         return entry0.create(e);
       });
       listing._entries = entries;
-      target.emit('listing', listing);
+      notify('listing', listing);
       n = entries.length;
       return entries.forEach(function(entry) {
         return node._fs_stat(entry.path, function(err, stat) {
           if (err != null) {
-            target.emit('error', err, {
+            notify('error', err, {
               op: 'fs.stat',
               entry: entry,
               listing: listing
@@ -221,15 +226,15 @@ WalkListing = (function() {
           if (stat != null) {
             entry.initStat(stat);
             node.filterEntry(entry);
-            target.emit('filter', entry, listing);
+            notify('filter', entry, listing);
             if (!entry.excluded) {
-              target.emit('entry', entry, listing);
-              target.emit(entry.modeKey, entry, listing);
+              notify('entry', entry, listing);
+              notify(entry.modeKey, entry, listing);
               entry.autoWalk(target);
             }
           }
           if (--n === 0) {
-            target.emit('listed', listing);
+            notify('listed', listing);
             return typeof done === "function" ? done(listing, target) : void 0;
           }
         });

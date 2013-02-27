@@ -91,30 +91,35 @@ class WalkListing
     @_entries = null
     listing = @; node = @node
     entry0 = node.newEntry()
-    target.emit 'listing_pre', listing
+
+    if not (typeof target is 'function')
+      notify = (target.walkNotify || target.emit || ->).bind(target)
+    else notify = target
+
+    notify 'listing_pre', listing
     node._fs_readdir @path, (err, entries)->
       if err?
-        target.emit 'error', err, {op:'fs.readdir', listing:listing}
+        notify 'error', err, {op:'fs.readdir', listing:listing}
 
       entries = (entries||[]).map (e)-> entry0.create(e)
       listing._entries = entries
 
-      target.emit 'listing', listing
+      notify 'listing', listing
       n = entries.length
       entries.forEach (entry)->
         node._fs_stat entry.path, (err, stat)->
           if err?
-            target.emit 'error', err, {op:'fs.stat', entry:entry, listing:listing}
+            notify 'error', err, {op:'fs.stat', entry:entry, listing:listing}
           if stat?
             entry.initStat(stat)
             node.filterEntry(entry)
-            target.emit 'filter', entry, listing
+            notify 'filter', entry, listing
             if not entry.excluded
-              target.emit 'entry', entry, listing
-              target.emit entry.modeKey, entry, listing
+              notify 'entry', entry, listing
+              notify entry.modeKey, entry, listing
               entry.autoWalk(target)
           if --n is 0
-            target.emit 'listed', listing
+            notify 'listed', listing
             done?(listing, target)
     return @
   
