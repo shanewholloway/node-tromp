@@ -11,53 +11,65 @@ fs = require 'fs'
 path = require 'path'
 events = require 'events'
 
+modeKeyForStat = (stat) ->
+  return 'unknown' if not stat?
+  return 'file' if stat.isFile()
+  return 'dir' if stat.isDirectory()
+  return 'other'
+
 class WalkEntry
   Object.defineProperties @.prototype,
     path: get: -> @node.resolve(@name)
     relPath: get: -> @node.relative @path
     rootPath: get: -> @node.rootPath
 
-  constructor: (node) ->
+  constructor: (node)->
     Object.defineProperty @, 'node', value:node
 
-  create: (name) ->
+  create: (name)->
     Object.create(@, name:{value:name})
 
-  modeKey: ()->
-    stat = @stat
-    return 'unknown' if not stat?
-    return 'file' if stat.isFile()
-    return 'dir' if stat.isDirectory()
-    return 'other'
+  modeKey: modeKeyForStat(null)
+  initStat: (stat)->
+    Object.defineProperties @,
+      stat: value:stat
+      modeKey: value:modeKeyForStat(stat)
+    return @
   isFile: -> @stat?.isFile()
   isDirectory: -> @stat?.isDirectory()
-  match: (rx, ctx) ->
+  match: (rx, ctx)->
     return null if not rx?
     return rx.call(ctx, @.name) if rx.call?
     return @name.match(rx)?
-  exclude: (v) ->
+  exclude: (v)->
     if v is undefined or !!v
       @excluded = true
     else
       delete @excluded
       return false
-  filter: (rx, ctx) ->
+  filter: (rx, ctx)->
     return rx? and @exclude(@match(rx, ctx)) or false
-  accept: (rx, ctx) ->
+  accept: (rx, ctx)->
     if not rx? or @match(rx, ctx)
       @exclude(false)
       return true
     else return false
-  reject: (rx, ctx) ->
+  reject: (rx, ctx)->
     if not rx? or @match(rx, ctx)
       @exclude(true)
       return true
     else return false
 
-  isWalkable: (include) ->
+  isWalkable: (include)->
     return (include or not @excluded) and @isDirectory()
-  walk: (force) ->
-    @node.root.walk(@path, @) if @isWalkable(force)
+
+  autoWalk: (target)->
+    if @isWalkable()
+      @node.root.autoWalk(@, target)
+  walk: (target, opt={})->
+    if @isWalkable(opt.force)
+      root = opt.root || @node.root
+      return root.walk(@, target)
 
   toString: -> @path
   toJSON: -> @toString()
@@ -70,195 +82,221 @@ class WalkListing
     relPath: get:-> @node.relative @path
     rootPath: get:-> @node.rootPath
 
-  constructor: (node) ->
+  constructor: (node)->
     Object.defineProperty @, 'node', value:node
 
-  _performListing: (root, done) ->
+  _performListing: (target, done)->
     if @_entries is not undefined
       return false
-    self = @; @_entries = null
-    entry = new @node.WalkEntry(@node)
-    root._fs_readdir @path, (err, entries) ->
+    @_entries = null
+    listing = @; node = @node
+    entry0 = node.newEntry()
+    target.emit 'listing_pre', listing
+    node._fs_readdir @path, (err, entries)->
       if err?
-        root.error?('fs.readdir', err, self)
-      entries = (entries || []).map (e)->
-        entry.create(e)
-      self._entries = entries
-      root.emit 'listing', self
+        target.emit 'error', err, {op:'fs.readdir', listing:listing}
 
+      entries = (entries||[]).map (e)-> entry0.create(e)
+      listing._entries = entries
+
+      target.emit 'listing', listing
       n = entries.length
-      entries.forEach (entry) ->
-        root._fs_stat entry.path, (err, stat) ->
-          Object.defineProperty entry, 'stat', {value:stat}
+      entries.forEach (entry)->
+        node._fs_stat entry.path, (err, stat)->
           if err?
-            root.error?('fs.stat', err, entry, self)
+            target.emit 'error', err, {op:'fs.stat', entry:entry, listing:listing}
           if stat?
-            root.emit 'filter', entry, self
+            entry.initStat(stat)
+            node.filterEntry(entry)
+            target.emit 'filter', entry, listing
             if not entry.excluded
-              root.emit 'entry', entry, self
-              root.emit entry.modeKey(), entry, self
-              if entry.isWalkable()
-                root.autoWalk(entry)
+              target.emit 'entry', entry, listing
+              target.emit entry.modeKey, entry, listing
+              entry.autoWalk(target)
           if --n is 0
-            root.emit 'listed', self
-            done?(self)
-    return self
+            target.emit 'listed', listing
+            done?(listing, target)
+    return @
   
-  selectEx: (fnList) ->
+  selectEx: (fnList)->
     res = (@_entries or [])
     if fnList?
-      res = res.filter (entry) ->
+      res = res.filter (entry)->
         fnList.every((fn)->fn(entry))
     return res
-  select: (fnList=[]) ->
+  select: (fnList=[])->
     fnList.unshift (e)-> not e.excluded
     return @selectEx(fnList)
 
-  matching: (rx, opts...) ->
+  matching: (rx, opts...)->
     opts.unshift (e)-> e.match(rx)
-    return @select opts...
-  files: (opts...) ->
+    return @select(opts...)
+  files: (opts...)->
     opts.unshift (e)->e.isFile()
-    return @select opts...
-  dirs: (opts...) ->
+    return @select(opts...)
+  dirs: (opts...)->
     opts.unshift (e)->e.isDirectory()
-    return @select opts...
-  walk: (opts...) ->
-    opts.unshift (e)->e.isDirectory()
-    for d in @select opts...
-      d.walk()
-    return @
-  filter: (rx, ctx) ->
+    return @select(opts...)
+  filter: (rx, ctx)->
     @selectEx (e)-> e.filter(rx,ctx)
-  accept: (rx, ctx) ->
+  accept: (rx, ctx)->
     @selectEx (e)-> e.accept(rx,ctx)
-  reject: (rx, ctx) ->
+  reject: (rx, ctx)->
     @selectEx (e)-> e.reject(rx,ctx)
 
   inspect: -> @toJSON()
   toJSON: ->
     res = {path:@path, relPath:@relPath}
     for e in @select()
-      (res[e.modeKey()+'s']||=[]).push e.name
+      (res[e.modeKey+'s']||=[]).push e.name
     return res
 
 
-createTaskQueue = (nTasks=1, schedule = process.nextTick) ->
-  n = 0; fnq = []; _active = false
-  step = (c) ->
-    if c?
-      n -= c
-      if not _active
-        _active = true
-        schedule(step)
-    else
-      _active = false
-      while fnq.length and n<=nTasks
-        try n++; fnq.shift()()
-        catch err then n--
-      queueTask.report?(nTasks, n, fnq.length)
-    return nTasks - n - fnq.length
+createTaskQueue = (opt={})->
+  nextTick = opt.schedule || process.nextTick
+  nMaxTasks = opt.tasks || 9e9
+  nComplete = 0; nActive = 0
+  taskq = []; live = false
 
-  queueTask = (inner, outer) ->
-    if not outer?
-      outer = inner; inner = null
-    fnq.push -> outer ->
-      step(1)
-      inner?.apply(this, arguments)
-    return step(0)
-  queueTask.clear = ->
-    fnq.length = 0
-    return step(0)
-  queueTask.throttle = (n)->
-    nTasks = n
-    return step(0)
-  return queueTask
+  self = queueTask = (outer, inner)->
+    if inner?
+      inner_finish =-> finish(); inner(arguments...)
+    else inner_finish = finish
+    taskq.push(-> outer(inner_finish))
+    return schedule()
+
+  Object.defineProperties self,
+    active: get:-> nActive
+    total: get:-> nActive+taskq.length
+    incomplete: get:-> taskq.length
+    complete: get:-> nComplete
+
+  finish = ->
+    ++nComplete; --nActive; schedule(); return
+  schedule = ->
+    nextTick(runTasks) if not live++
+    return self
+  runTasks = ->
+    live = false
+    while taskq.length and nActive<=nMaxTasks
+      try nActive++; taskq.shift()()
+      catch err
+        nActive--; self.error(err)
+    self.report?(nActive, taskq.length)
+    doneFns.invoke() if isDone()
+
+  self.isDone = isDone = ->
+    nComplete>0 and 0 is nActive and 0 is taskq.length
+
+  (doneFns=[]).invoke = ->
+    for fn in this
+      try fn(self)
+      catch err
+        self.error(err)
+  self.done = (callback)->
+    doneFns.push(callback)
+    if isDone()
+      try callback(self)
+      catch err
+        self.error(err)
+    return self
+
+  self.error = opt.error || (err)-> console.error(err.stack)
+  self.report = opt.report if opt.report?
+  self.throttle = (n)->
+    nMaxTasks = n; return schedule()
+  return self
 
 
 class WalkNode
-  WalkListing: WalkListing
   WalkEntry: WalkEntry
-
-  constructor: (root) ->
+  WalkListing: WalkListing
+  constructor: (root, opt)->
     Object.defineProperties @,
-      root:{value:root}
+      root:{value:root},
+      walkQueue: value: createTaskQueue()
+      _fs_queue:
+        value: createTaskQueue(tasks:opt.tasks || 10)
 
-  create: (listPath, entry) ->
+  create: (listPath, entry)->
+    listPath = path.resolve(listPath)
     return Object.create @,
       listPath:{value: listPath}
       rootPath:{value: entry?.rootPath || listPath}
       entry:{value: entry}
+      next:{value: @}
 
-  _performListing: (done) ->
-    new @.WalkListing(@)._performListing(@root, done)
+  newEntry: -> new @.WalkEntry(@)
+  newListing: (pathOrEntry)->
+    if pathOrEntry.isWalkable?() # it is an entry
+      self = @create(pathOrEntry.path, pathOrEntry)
+    else self = @create(pathOrEntry) # it is a path
+    return new @.WalkListing(self)
+  walk: (pathOrEntry, target)->
+    listing = @newListing(pathOrEntry)
+    @walkQueue (done)->
+      listing._performListing(target, done)
+    return listing
 
   resolve: (args...)-> path.resolve(@listPath, args...)
   relative: (args...)-> path.relative(@rootPath, args...)
 
+  addEntryFilter: (fns...)->
+    @entryFilters = (@entryFilters||[]).concat(fns)
+  filterEntry: (entry)->
+    if @entryFilters?
+      for fn in @entryFilters
+        try fn(entry) catch err
+
+  _fs_stat: (aPath, callback)->
+    @_fs_queue(
+      (next)-> fs.stat(aPath, next)
+      callback)
+  _fs_readdir: (aPath, callback)->
+    @_fs_queue(
+      (next)-> fs.readdir(aPath, next)
+      callback)
+
 
 class WalkRoot extends events.EventEmitter
   WalkNode: WalkNode
-  constructor: (path, opt, callback) ->
+  constructor: (opt={})->
     events.EventEmitter.call @
-    if 'function' is typeof opt
-      callback = opt; opt = {}
-    else opt ||= {}
-    @on('listed', callback) if callback?
-    if not opt.showHidden
-      @reject /^\./
+    @node = new @.WalkNode(@, opt)
+    @node.walkQueue.done => @emit('done')
+
+    @reject(/^\./) if not opt.showHidden
     if opt.autoWalk?
       @autoWalk = opt.autoWalk or (-> null)
 
-    opt.schedule ||= process.nextTick
-    @_node = new @.WalkNode(@)
-    @queueTask = createTaskQueue(opt.tasks || 10, opt.schedule)
-    if path?
-      opt.schedule => @walk(path)
-    return @
-
-  walk: (aPath, entry) ->
-    if aPath.isWalkable?()
-      entry = aPath; aPath = entry.path
-    aPath = path.resolve(aPath)
-    track = (@_activeWalks ||= [0])
-    if aPath not in track
-      track[aPath] = node = @_node.create(aPath, entry)
-      if track[0] is 0
-        @emit 'start'
-      @emit 'active', ++track[0], +1, track
-      node._performListing =>
-        delete track[aPath]
-        @emit 'active', --track[0], -1, track
-        if track[0] is 0
-          @emit('done')
-
-  autoWalk: (entry) -> entry.walk()
+  walk: (pathOrEntry, target=@)->
+    @node.walk(pathOrEntry, target||@)
+  autoWalk: (entry, target)->
+    entry.walk(target)
 
   done: (callback)->
-    if 0 is @_activeWalks?[0]
-      callback()
-    else @once('done', callback)
-
-  filter: (rx, ctx) ->
-    if rx?
-      @on 'filter', (e)-> e.filter(rx, ctx)
+    @node.walkQueue.done(callback)
     return @
-  accept: (rx, ctx) ->
-    if rx?
-      @on 'filter', (e)-> e.accept(rx, ctx)
+  filter: (args...)->
+    @node.addEntryFilter (e)-> e.filter(args...) if args[0]?
     return @
-  reject: (rx, ctx) ->
-    if rx?
-      @on 'filter', (e)-> e.reject(rx, ctx)
+  accept: (args...)->
+    @node.addEntryFilter (e)-> e.accept(args...) if args[0]?
+    return @
+  reject: (args...)->
+    @node.addEntryFilter (e)-> e.reject(args...) if args[0]?
     return @
 
-  _fs_stat: (aPath, cb) ->
-    @queueTask cb, (cb) -> fs.stat aPath, cb
-  _fs_readdir: (aPath, cb) ->
-    @queueTask cb, (cb) -> fs.readdir aPath, cb
-
-tromp = (path, opt, callback) ->
-  new tromp.WalkRoot(path, opt, callback)
+tromp = (path, opt, callback)->
+  if typeof opt is 'function'
+    callback = opt; opt = null
+  if typeof path is not 'string'
+    opt = path; path = null
+  root = new tromp.WalkRoot(opt)
+  root.on('listing', callback) if callback?
+  path ||= opt?.path
+  root.walk(path) if path?
+  return root
 
 tromp.WalkRoot = WalkRoot
 tromp.WalkNode = WalkNode

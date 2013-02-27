@@ -28,9 +28,7 @@ arg                   | desc
 
 event             | args          | desc
 -----             | ----          | ----
-`'active'`        | count, delta  | When `WalkRoot` starts and stops walk a root
-`'start'`         |               | Emitted when `active` is greater than 0
-`'done'`          |               | Emitted when `active` returns to 0
+`'done'`          |               | Emitted all walks have completed
 `'listing'`       | node          | When entries have been received, but before entries have started `fs.stat`
 `'listed'`        | node          | After all entries have completed `fs.stat`
 `'filter'`        | entry, node   | After each `WalkEntry`'s completes `fs.stat`, but before `entry` event
@@ -41,17 +39,17 @@ event             | args          | desc
 #### `WalkRoot::walk(path)` method
 Starts a new walk rooted at path, creating a `WalkListing` instance if not already in progress for that path. Emits `active` events when listings are initiated or completed.
 
+#### `WalkRoot::autoWalk(entry, target)` method
+Double dispatch mechanism, defaulting to `entry.walk(target)`
+
 #### `WalkRoot::filter(rx, ctx)` method
-Calls `entry.filter(rx,ctx)` for each `entry:filter` event occurence
+Calls `entry.filter(rx,ctx)` for each `filter` event occurence
 
 #### `WalkRoot::accept(rx, ctx)` method
-Calls `entry.accept(rx,ctx)` for each `entry:filter` event occurence
+Calls `entry.accept(rx,ctx)` for each `filter` event occurence
 
 #### `WalkRoot::reject(rx, ctx)` method
-Calls `entry.accept(rx,ctx)` for each `entry:filter` event occurence
-
-#### `WalkRoot::autoWalk(entry)` method
-Double dispatch mechanism, defaulting to `entry.walk()`
+Calls `entry.accept(rx,ctx)` for each `filter` event occurence
 
 
 ### WalkNode
@@ -82,9 +80,6 @@ Invokes `select({isFile:true}, opts...)`
 #### `WalkListing::dirs(opts...)` method
 Invokes `select({isDirectory:true}, opts...)`
 
-#### `WalkListing::walk(opts...)` method
-Invokes `entry.walk()` for all directories returned by `this.dirs(opts...)`
-
 #### `WalkListing::filter(rx, ctx)` method
 Invokes `entry.filter(rx, ctx)` against all listing entries.
 #### `WalkListing::accept(opts...)` method
@@ -100,10 +95,9 @@ An manipulable object representing and entry of the `WalkListing`.
 * `rootPath` is the path initially responsible for listing this entry
 * `path` is the resolved path this entry represents
 * `relPath` is `path` as relative to `rootPath`
+* `stat` is an `fs.stat` instance, once initialized
+* `modeKey` is a string enum from `['unknown', 'file', 'dir', 'other']`
 
-
-#### `WalkEntry::modeKey()` method
-Returns a string constant depending upon the entry file mode.
 
 #### `WalkEntry::isFile()` method
 Returns `true` if the entry is a file.
