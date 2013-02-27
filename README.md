@@ -26,15 +26,15 @@ arg                   | desc
 `options.tasks`       | number of concurrent filesystem operations in flight at once
 `callback`            | when provided, the function is added to `.on('listed', callback)`
 
-event             | args          | desc
------             | ----          | ----
-`'done'`          |               | Emitted all walks have completed
-`'listing'`       | node          | When entries have been received, but before entries have started `fs.stat`
-`'listed'`        | node          | After all entries have completed `fs.stat`
-`'filter'`        | entry, node   | After each `WalkEntry`'s completes `fs.stat`, but before `entry` event
-`'entry'`         | entry, node   | After each `WalkEntry`'s completes `fs.stat` and is not excluded during `filter` event
-`'file'`          | entry, node   | After `'entry'` event, but only emitted for files
-`'dir'`           | entry, node   | After `'entry'` event, but only emitted for directories
+event             | args            | desc
+-----             | ----            | ----
+`'done'`          |                 | Emitted all walks have completed
+`'listing'`       | listing         | When entries have been received, but before entries have started `fs.stat`
+`'listed'`        | listing         | After all entries have completed `fs.stat`
+`'filter'`        | entry, listing  | After each `WalkEntry`'s completes `fs.stat`, but before `entry` event
+`'entry'`         | entry, listing  | After each `WalkEntry`'s completes `fs.stat` and is not excluded during `filter` event
+`'file'`          | entry, listing  | After `'entry'` event, but only emitted for files
+`'dir'`           | entry, listing  | After `'entry'` event, but only emitted for directories
 
 #### `WalkRoot::walk(path)` method
 Starts a new walk rooted at path, creating a `WalkListing` instance if not already in progress for that path. Emits `active` events when listings are initiated or completed.
