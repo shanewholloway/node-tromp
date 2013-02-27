@@ -182,29 +182,31 @@ createTaskQueue = (opt={})->
       try nActive++; taskq.shift()()
       catch err
         nActive--; self.error(err)
-    self.report?(nActive, taskq.length)
-    doneFns.invoke() if isDone()
+    updateFns.invoke(self, nActive, taskq.length)
+    idleFns.invoke(self) if isIdle()
+    return
 
-  self.isDone = isDone = ->
-    nComplete>0 and 0 is nActive and 0 is taskq.length
-
-  (doneFns=[]).invoke = ->
-    for fn in this
-      try fn(self)
-      catch err
-        self.error(err)
-  self.done = (callback)->
-    doneFns.push(callback)
-    if isDone()
-      try callback(self)
-      catch err
-        self.error(err)
-    return self
-
+  self.isIdle = isIdle = (min)->
+    (0 is nActive) and (0 is taskq.length) and (not min? or min<=nComplete)
+  self.throttle = (n)-> nMaxTasks = n; return schedule()
   self.error = opt.error || (err)-> console.error(err.stack)
-  self.report = opt.report if opt.report?
-  self.throttle = (n)->
-    nMaxTasks = n; return schedule()
+
+  invokeEach = ->
+    for fn in this
+      try fn(arguments...)
+      catch err
+        self.error(err)
+
+  (updateFns=[]).invoke = invokeEach
+  self.update = (callback)->
+    updateFns.push callback
+    return
+
+  (idleFns=[]).invoke = invokeEach
+  self.idle = (callback)->
+    idleFns.push callback
+    if isIdle()
+      callback(self)
   return self
 
 
@@ -264,7 +266,8 @@ class WalkRoot extends events.EventEmitter
   constructor: (opt={})->
     events.EventEmitter.call @
     @node = new @.WalkNode(@, opt)
-    @node.walkQueue.done => @emit('done')
+    @node.walkQueue.idle (q)=>
+      @emit('done') if q.complete>0
 
     @reject(/^\./) if not opt.showHidden
     if opt.autoWalk?
@@ -275,8 +278,12 @@ class WalkRoot extends events.EventEmitter
   autoWalk: (entry, target)->
     entry.walk(target)
 
+  isDone: ()->
+    return @node.walkQueue.isIdle(1)
   done: (callback)->
-    @node.walkQueue.done(callback)
+    if not @isDone()
+      @on('done', callback)
+    else callback()
     return @
   filter: (args...)->
     @node.addEntryFilter (e)-> e.filter(args...) if args[0]?

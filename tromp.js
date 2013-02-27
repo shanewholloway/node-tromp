@@ -329,7 +329,7 @@ WalkListing = (function() {
 })();
 
 createTaskQueue = function(opt) {
-  var doneFns, finish, isDone, live, nActive, nComplete, nMaxTasks, nextTick, queueTask, runTasks, schedule, self, taskq;
+  var finish, idleFns, invokeEach, isIdle, live, nActive, nComplete, nMaxTasks, nextTick, queueTask, runTasks, schedule, self, taskq, updateFns;
   if (opt == null) {
     opt = {};
   }
@@ -398,49 +398,44 @@ createTaskQueue = function(opt) {
         self.error(err);
       }
     }
-    if (typeof self.report === "function") {
-      self.report(nActive, taskq.length);
-    }
-    if (isDone()) {
-      return doneFns.invoke();
+    updateFns.invoke(self, nActive, taskq.length);
+    if (isIdle()) {
+      idleFns.invoke(self);
     }
   };
-  self.isDone = isDone = function() {
-    return nComplete > 0 && 0 === nActive && 0 === taskq.length;
+  self.isIdle = isIdle = function(min) {
+    return (0 === nActive) && (0 === taskq.length) && (!(min != null) || min <= nComplete);
   };
-  (doneFns = []).invoke = function() {
+  self.throttle = function(n) {
+    nMaxTasks = n;
+    return schedule();
+  };
+  self.error = opt.error || function(err) {
+    return console.error(err.stack);
+  };
+  invokeEach = function() {
     var fn, _i, _len, _results;
     _results = [];
     for (_i = 0, _len = this.length; _i < _len; _i++) {
       fn = this[_i];
       try {
-        _results.push(fn(self));
+        _results.push(fn.apply(null, arguments));
       } catch (err) {
         _results.push(self.error(err));
       }
     }
     return _results;
   };
-  self.done = function(callback) {
-    doneFns.push(callback);
-    if (isDone()) {
-      try {
-        callback(self);
-      } catch (err) {
-        self.error(err);
-      }
+  (updateFns = []).invoke = invokeEach;
+  self.update = function(callback) {
+    updateFns.push(callback);
+  };
+  (idleFns = []).invoke = invokeEach;
+  self.idle = function(callback) {
+    idleFns.push(callback);
+    if (isIdle()) {
+      return callback(self);
     }
-    return self;
-  };
-  self.error = opt.error || function(err) {
-    return console.error(err.stack);
-  };
-  if (opt.report != null) {
-    self.report = opt.report;
-  }
-  self.throttle = function(n) {
-    nMaxTasks = n;
-    return schedule();
   };
   return self;
 };
@@ -572,8 +567,10 @@ WalkRoot = (function(_super) {
     }
     events.EventEmitter.call(this);
     this.node = new this.WalkNode(this, opt);
-    this.node.walkQueue.done(function() {
-      return _this.emit('done');
+    this.node.walkQueue.idle(function(q) {
+      if (q.complete > 0) {
+        return _this.emit('done');
+      }
     });
     if (!opt.showHidden) {
       this.reject(/^\./);
@@ -596,8 +593,16 @@ WalkRoot = (function(_super) {
     return entry.walk(target);
   };
 
+  WalkRoot.prototype.isDone = function() {
+    return this.node.walkQueue.isIdle(1);
+  };
+
   WalkRoot.prototype.done = function(callback) {
-    this.node.walkQueue.done(callback);
+    if (!this.isDone()) {
+      this.on('done', callback);
+    } else {
+      callback();
+    }
     return this;
   };
 
