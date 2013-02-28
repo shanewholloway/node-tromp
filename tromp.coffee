@@ -11,10 +11,11 @@ fs = require 'fs'
 path = require 'path'
 events = require 'events'
 
-modeKeyForStat = (stat) ->
+modeForStat = (stat) ->
   return 'unknown' if not stat?
   return 'file' if stat.isFile()
   return 'dir' if stat.isDirectory()
+  return 'symlink' if stat.isSymbolicLink()
   return 'other'
 
 class WalkEntry
@@ -22,6 +23,7 @@ class WalkEntry
     path: get: -> @node.resolve(@name)
     relPath: get: -> @node.relative @path
     rootPath: get: -> @node.rootPath
+    modeKey: get: -> @mode
 
   constructor: (node)->
     Object.defineProperty @, 'node', value:node
@@ -29,11 +31,11 @@ class WalkEntry
   create: (name)->
     Object.create(@, name:{value:name})
 
-  modeKey: modeKeyForStat(null)
+  mode: modeForStat(null)
   initStat: (stat)->
     Object.defineProperties @,
       stat: value:stat
-      modeKey: value:modeKeyForStat(stat)
+      mode: value:modeForStat(stat)
     return @
   isFile: -> @stat?.isFile()
   isDirectory: -> @stat?.isDirectory()
@@ -116,7 +118,7 @@ class WalkListing
             notify 'filter', entry, listing
             if not entry.excluded
               notify 'entry', entry, listing
-              notify entry.modeKey, entry, listing
+              notify entry.mode, entry, listing
               entry.autoWalk(target)
           if --n is 0
             notify 'listed', listing
@@ -153,7 +155,7 @@ class WalkListing
   toJSON: ->
     res = {path:@path, relPath:@relPath}
     for e in @select()
-      (res[e.modeKey+'s']||=[]).push e.name
+      (res[e.mode+'s']||=[]).push e.name
     return res
 
 

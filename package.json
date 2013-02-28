@@ -1,6 +1,6 @@
 {
   "name": "tromp",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "license": "MIT",
   "readmeFilename": "README.md",
   "description": "Asynchronous filesystem directory walk with events and accept/reject filtering. For use with minimatch or other filtering tools.",
