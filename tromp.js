@@ -151,6 +151,10 @@ WalkEntry = (function() {
     }
   };
 
+  WalkEntry.prototype.walkPath = function() {
+    return this.path;
+  };
+
   WalkEntry.prototype.toString = function() {
     return this.path;
   };
@@ -500,7 +504,7 @@ WalkNode = (function() {
   WalkNode.prototype.newListing = function(pathOrEntry, target) {
     var self;
     if (typeof pathOrEntry.isWalkable === "function" ? pathOrEntry.isWalkable() : void 0) {
-      self = this.create(pathOrEntry.path, pathOrEntry, target);
+      self = this.create((typeof pathOrEntry.walkPath === "function" ? pathOrEntry.walkPath() : void 0) || pathOrEntry.path, pathOrEntry, target);
     } else {
       self = this.create(pathOrEntry, null, target);
     }

@@ -72,6 +72,7 @@ class WalkEntry
     if @isWalkable(opt.force)
       root = opt.root || @node.root
       return root.walk(@, target||@node.target)
+  walkPath: -> @path
 
   toString: -> @path
   toJSON: -> @toString()
@@ -238,7 +239,7 @@ class WalkNode
   newEntry: -> new @.WalkEntry(@)
   newListing: (pathOrEntry, target)->
     if pathOrEntry.isWalkable?() # is it an entry?
-      self = @create(pathOrEntry.path, pathOrEntry, target)
+      self = @create(pathOrEntry.walkPath?() or pathOrEntry.path, pathOrEntry, target)
     else # must be a path
       self = @create(pathOrEntry, null, target)
     return new @.WalkListing(self)
