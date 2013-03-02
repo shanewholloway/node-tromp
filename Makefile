@@ -1,10 +1,11 @@
-all: tromp.js
+all: build test
+build: tromp
 
-tromp.js: tromp.coffee
-	coffee -bc tromp.coffee
+tromp: tromp.coffee funcQueues.coffee 
+	coffee -bc *.coffee
 
-testDemo:
+test: tromp
 	node test/demo.js
 
-test: tromp.js testDemo
-
+clean:
+	rm *.js

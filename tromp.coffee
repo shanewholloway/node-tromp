@@ -10,6 +10,7 @@
 fs = require 'fs'
 path = require 'path'
 events = require 'events'
+{closureQueue, taskQueue} = require './funcQueues'
 
 modeForStat = (stat) ->
   return 'unknown' if not stat?
@@ -171,73 +172,14 @@ class WalkListing
     return res
 
 
-createTaskQueue = (opt={})->
-  nextTick = opt.schedule || process.nextTick
-  nMaxTasks = opt.tasks || 9e9
-  nComplete = 0; nActive = 0
-  taskq = []; live = false
-
-  self = queueTask = (outer, inner)->
-    if inner?
-      inner_finish =-> finish(); inner(arguments...)
-    else inner_finish = finish
-    taskq.push(-> outer(inner_finish))
-    return schedule()
-
-  Object.defineProperties self,
-    active: get:-> nActive
-    total: get:-> nActive+taskq.length
-    incomplete: get:-> taskq.length
-    complete: get:-> nComplete
-
-  finish = ->
-    ++nComplete; --nActive; schedule(); return
-  schedule = ->
-    nextTick(runTasks) if not live++
-    return self
-  runTasks = ->
-    live = false
-    while taskq.length and nActive<=nMaxTasks
-      try nActive++; taskq.shift()()
-      catch err
-        nActive--; self.error(err)
-    updateFns.invoke(self, nActive, taskq.length)
-    idleFns.invoke(self) if isIdle()
-    return
-
-  self.isIdle = isIdle = (min)->
-    (0 is nActive) and (0 is taskq.length) and (not min? or min<=nComplete)
-  self.throttle = (n)-> nMaxTasks = n; return schedule()
-  self.error = opt.error || (err)-> console.error(err.stack)
-
-  invokeEach = ->
-    for fn in this
-      try fn(arguments...)
-      catch err
-        self.error(err)
-
-  (updateFns=[]).invoke = invokeEach
-  self.update = (callback)->
-    updateFns.push callback
-    return
-
-  (idleFns=[]).invoke = invokeEach
-  self.idle = (callback)->
-    idleFns.push callback
-    if isIdle()
-      callback(self)
-  return self
-
-
 class WalkNode
   WalkEntry: WalkEntry
   WalkListing: WalkListing
   constructor: (root, opt)->
     Object.defineProperties @,
       root:{value:root},
-      walkQueue: value: createTaskQueue()
-      _fs_queue:
-        value: createTaskQueue(tasks:opt.tasks || 10)
+      walkQueue: value: closureQueue(->root.emit('done'))
+      _fs_queue: value: taskQueue(tasks:opt.tasks || 10)
 
   create: (listPath, entry, target)->
     listPath = path.resolve(listPath)
@@ -256,8 +198,7 @@ class WalkNode
     return new @.WalkListing(self)
   walk: (pathOrEntry, target)->
     listing = @newListing(pathOrEntry, target)
-    @walkQueue (done)->
-      listing._performListing(target, done)
+    listing._performListing(target, @walkQueue())
     return listing
 
   resolve: (args...)-> path.resolve(@listPath, args...)
@@ -271,13 +212,12 @@ class WalkNode
         try fn(entry) catch err
 
   _fs_stat: (aPath, callback)->
-    @_fs_queue(
-      (next)-> fs.stat(aPath, next)
-      callback)
+    @_fs_queue (task)->
+      fs.stat(aPath, task.wrap(callback))
+
   _fs_readdir: (aPath, callback)->
-    @_fs_queue(
-      (next)-> fs.readdir(aPath, next)
-      callback)
+    @_fs_queue (task)->
+      fs.readdir(aPath, task.wrap(callback))
 
 
 class WalkRoot extends events.EventEmitter
@@ -285,8 +225,6 @@ class WalkRoot extends events.EventEmitter
   constructor: (opt={})->
     events.EventEmitter.call @
     @node = new @.WalkNode(@, opt)
-    @node.walkQueue.idle (q)=>
-      @emit('done') if q.complete>0
 
     @reject(/^\./) if not opt.showHidden
     if opt.autoWalk?
@@ -297,8 +235,7 @@ class WalkRoot extends events.EventEmitter
   autoWalk: (entry, target)->
     entry.walk(target)
 
-  isDone: ()->
-    return @node.walkQueue.isIdle(1)
+  isDone: ()-> return @node.walkQueue.isDone()
   done: (callback)->
     if not @isDone()
       @on('done', callback)
