@@ -198,7 +198,7 @@ WalkListing = (function() {
   }
 
   WalkListing.prototype._performListing = function(target, done) {
-    var entry0, listing, node, notify;
+    var entry0, listing, node, notify, postDone;
     if (this._entries === !void 0) {
       return false;
     }
@@ -212,6 +212,13 @@ WalkListing = (function() {
       notify = target;
     }
     notify('listing_pre', listing);
+    postDone = function(err) {
+      postDone = null;
+      notify('listed', listing);
+      if (typeof done === "function") {
+        done(err, listing, target);
+      }
+    };
     node._fs_readdir(this.path, function(err, entries) {
       var n;
       if (err != null) {
@@ -226,7 +233,13 @@ WalkListing = (function() {
       listing._entries = entries;
       notify('listing', listing);
       n = entries.length;
-      return entries.forEach(function(entry) {
+      if (n === 0) {
+        if (typeof postDone === "function") {
+          postDone();
+        }
+        return;
+      }
+      entries.forEach(function(entry) {
         return node._fs_stat(entry.path, function(err, stat) {
           if (err != null) {
             notify('error', err, {
@@ -246,8 +259,9 @@ WalkListing = (function() {
             }
           }
           if (--n === 0) {
-            notify('listed', listing);
-            return typeof done === "function" ? done(listing, target) : void 0;
+            if (typeof postDone === "function") {
+              postDone();
+            }
           }
         });
       });

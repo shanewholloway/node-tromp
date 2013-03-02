@@ -100,6 +100,12 @@ class WalkListing
     else notify = target
 
     notify 'listing_pre', listing
+    postDone = (err)->
+      postDone = null
+      notify 'listed', listing
+      done?(err, listing, target)
+      return
+
     node._fs_readdir @path, (err, entries)->
       if err?
         notify 'error', err, {op:'fs.readdir', listing:listing}
@@ -109,6 +115,10 @@ class WalkListing
 
       notify 'listing', listing
       n = entries.length
+      if n is 0
+        postDone?()
+        return
+
       entries.forEach (entry)->
         node._fs_stat entry.path, (err, stat)->
           if err?
@@ -122,8 +132,9 @@ class WalkListing
               notify entry.mode, entry, listing
               entry.autoWalk(target)
           if --n is 0
-            notify 'listed', listing
-            done?(listing, target)
+            postDone?()
+          return
+      return
     return @
   
   selectEx: (fnList)->
