@@ -23,7 +23,9 @@ closureQueue = (tgt, callback)->
       callback?(null, self, n1)
     return isdone
   finish.wrap = (callback)->
-    return -> finish(); callback.apply(@, arguments)
+    return ->
+      try callback.apply(@, arguments)
+      finally finish()
   
   Object.defineProperties self=start,
     started: get:-> n0

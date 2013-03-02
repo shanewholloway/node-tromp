@@ -34,8 +34,11 @@ closureQueue = function(tgt, callback) {
   };
   finish.wrap = function(callback) {
     return function() {
-      finish();
-      return callback.apply(this, arguments);
+      try {
+        return callback.apply(this, arguments);
+      } finally {
+        finish();
+      }
     };
   };
   Object.defineProperties(self = start, {
