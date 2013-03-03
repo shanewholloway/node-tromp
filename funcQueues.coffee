@@ -68,17 +68,19 @@ closureQueue = (tgt, callback)->
     callback = tgt; tgt=null
 
   n0 = 0; n1 = 0
-  start = ->
-    self.start?(self, n1-n0)
-    ++n0; return finish
+  start = (callback)->
+    self.start?(self, n1 - n0++)
+    return finish if not callback?
+    return finish.wrap(callback)
   finish = ->
     isdone = ++n1 is n0
     self.finish?(self, n1-n0)
     if isdone?
-      self.done?(self, n1)
+      self.done?.call(self, self, n1)
       callback?(null, self, n1)
     return isdone
   finish.wrap = (callback)->
+    return finish if not callback?
     return ->
       try callback.apply(@, arguments)
       finally finish()
@@ -91,7 +93,7 @@ closureQueue = (tgt, callback)->
     isIdle: value:-> n1 is n0
     isDone: value:-> n1 is n0 and n0>0
   if tgt?
-    tgt[k]=v for k,v of tgt
+    self[k]=v for k,v of tgt
   return self
 exports.closureQueue = closureQueue
 
@@ -113,7 +115,7 @@ taskQueue = (limit, tgt, callback)->
       self.step(-1); return
     done: (cq, nComplete)->
       callback?(null, self, n0)
-      self.done?(self, n0); return
+      self.done?.call(self, self, n0); return
 
   taskq = []
   addTask = (fn)->
@@ -140,7 +142,7 @@ taskQueue = (limit, tgt, callback)->
     isIdle: value:-> taskq.length is 0 and cq.isIdle()
     isDone: value:-> taskq.length is 0 and cq.isDone()
   if tgt?
-    tgt[k]=v for k,v of tgt
+    self[k]=v for k,v of tgt
   return self
 exports.taskQueue = taskQueue
 

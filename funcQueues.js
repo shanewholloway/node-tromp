@@ -108,22 +108,24 @@ closureQueue = function(tgt, callback) {
   }
   n0 = 0;
   n1 = 0;
-  start = function() {
+  start = function(callback) {
     if (typeof self.start === "function") {
-      self.start(self, n1 - n0);
+      self.start(self, n1 - n0++);
     }
-    ++n0;
-    return finish;
+    if (!(callback != null)) {
+      return finish;
+    }
+    return finish.wrap(callback);
   };
   finish = function() {
-    var isdone;
+    var isdone, _ref;
     isdone = ++n1 === n0;
     if (typeof self.finish === "function") {
       self.finish(self, n1 - n0);
     }
     if (isdone != null) {
-      if (typeof self.done === "function") {
-        self.done(self, n1);
+      if ((_ref = self.done) != null) {
+        _ref.call(self, self, n1);
       }
       if (typeof callback === "function") {
         callback(null, self, n1);
@@ -132,6 +134,9 @@ closureQueue = function(tgt, callback) {
     return isdone;
   };
   finish.wrap = function(callback) {
+    if (!(callback != null)) {
+      return finish;
+    }
     return function() {
       try {
         return callback.apply(this, arguments);
@@ -175,7 +180,7 @@ closureQueue = function(tgt, callback) {
   if (tgt != null) {
     for (k in tgt) {
       v = tgt[k];
-      tgt[k] = v;
+      self[k] = v;
     }
   }
   return self;
@@ -203,11 +208,12 @@ taskQueue = function(limit, tgt, callback) {
       self.step(-1);
     },
     done: function(cq, nComplete) {
+      var _ref;
       if (typeof callback === "function") {
         callback(null, self, n0);
       }
-      if (typeof self.done === "function") {
-        self.done(self, n0);
+      if ((_ref = self.done) != null) {
+        _ref.call(self, self, n0);
       }
     }
   });
@@ -279,7 +285,7 @@ taskQueue = function(limit, tgt, callback) {
   if (tgt != null) {
     for (k in tgt) {
       v = tgt[k];
-      tgt[k] = v;
+      self[k] = v;
     }
   }
   return self;
