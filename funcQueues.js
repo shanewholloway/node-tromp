@@ -40,10 +40,11 @@ functionList = (function() {
     }
   };
   init = function() {
-    var args, desc, each, k, self, v;
+    var args, desc, each, k, self, v, _i, _len;
     self = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
     desc = {};
-    for (each in args) {
+    for (_i = 0, _len = args.length; _i < _len; _i++) {
+      each = args[_i];
       for (k in each) {
         if (!__hasProp.call(each, k)) continue;
         v = each[k];
@@ -110,7 +111,7 @@ closureQueue = function(tgt, callback) {
   nComplete = 0;
   start = function(callback) {
     if (typeof self.start === "function") {
-      self.start(self, nComplete - nStarted);
+      self.start(self, nStarted - nComplete);
     }
     nStarted++;
     if (!(callback != null)) {
@@ -122,9 +123,9 @@ closureQueue = function(tgt, callback) {
     var isdone, _ref;
     isdone = ++nComplete === nStarted;
     if (typeof self.finish === "function") {
-      self.finish(self, nComplete - nStarted);
+      self.finish(self, nStarted - nComplete);
     }
-    if (isdone != null) {
+    if (isdone) {
       if ((_ref = self.done) != null) {
         _ref.call(self, self, nComplete);
       }
@@ -159,7 +160,7 @@ closureQueue = function(tgt, callback) {
     },
     active: {
       get: function() {
-        return nComplete - nStarted;
+        return nStarted - nComplete;
       }
     },
     inspect: {

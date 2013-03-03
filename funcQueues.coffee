@@ -69,14 +69,14 @@ closureQueue = (tgt, callback)->
 
   nStarted = 0; nComplete = 0
   start = (callback)->
-    self.start?(self, nComplete - nStarted)
+    self.start?(self, nStarted-nComplete)
     nStarted++
     return finish if not callback?
     return finish.wrap(callback)
   finish = ->
     isdone = ++nComplete is nStarted
-    self.finish?(self, nComplete-nStarted)
-    if isdone?
+    self.finish?(self, nStarted-nComplete)
+    if isdone
       self.done?.call(self, self, nComplete)
       callback?(null, self, nComplete)
     return isdone
@@ -89,7 +89,7 @@ closureQueue = (tgt, callback)->
   Object.defineProperties self=start,
     started: get:-> nStarted
     completed: get:-> nComplete
-    active: get:-> nComplete - nStarted
+    active: get:-> nStarted - nComplete
     inspect: value:-> "[closureQueue active: #{@active} completed: #{@completed}]"
     toString: value:-> @inspect()
     isIdle: value:-> nComplete is nStarted
