@@ -101,17 +101,18 @@ exports.funcList = funcList = functionList;
 exports.fnList = fnList = functionList;
 
 closureQueue = function(tgt, callback) {
-  var finish, k, n0, n1, self, start, v;
+  var finish, k, nComplete, nStarted, self, start, v;
   if (typeof tgt === 'function') {
     callback = tgt;
     tgt = null;
   }
-  n0 = 0;
-  n1 = 0;
+  nStarted = 0;
+  nComplete = 0;
   start = function(callback) {
     if (typeof self.start === "function") {
-      self.start(self, n1 - n0++);
+      self.start(self, nComplete - nStarted);
     }
+    nStarted++;
     if (!(callback != null)) {
       return finish;
     }
@@ -119,16 +120,16 @@ closureQueue = function(tgt, callback) {
   };
   finish = function() {
     var isdone, _ref;
-    isdone = ++n1 === n0;
+    isdone = ++nComplete === nStarted;
     if (typeof self.finish === "function") {
-      self.finish(self, n1 - n0);
+      self.finish(self, nComplete - nStarted);
     }
     if (isdone != null) {
       if ((_ref = self.done) != null) {
-        _ref.call(self, self, n1);
+        _ref.call(self, self, nComplete);
       }
       if (typeof callback === "function") {
-        callback(null, self, n1);
+        callback(null, self, nComplete);
       }
     }
     return isdone;
@@ -148,32 +149,37 @@ closureQueue = function(tgt, callback) {
   Object.defineProperties(self = start, {
     started: {
       get: function() {
-        return n0;
+        return nStarted;
       }
     },
     completed: {
       get: function() {
-        return n1;
+        return nComplete;
       }
     },
     active: {
       get: function() {
-        return n1 - n0;
+        return nComplete - nStarted;
       }
     },
-    valueOf: {
+    inspect: {
       value: function() {
-        return n1 - n0;
+        return "[closureQueue active: " + this.active + " completed: " + this.completed + "]";
+      }
+    },
+    toString: {
+      value: function() {
+        return this.inspect();
       }
     },
     isIdle: {
       value: function() {
-        return n1 === n0;
+        return nComplete === nStarted;
       }
     },
     isDone: {
       value: function() {
-        return n1 === n0 && n0 > 0;
+        return nComplete === nStarted && nStarted > 0;
       }
     }
   });
@@ -210,10 +216,10 @@ taskQueue = function(limit, tgt, callback) {
     done: function(cq, nComplete) {
       var _ref;
       if (typeof callback === "function") {
-        callback(null, self, n0);
+        callback(null, self, nComplete);
       }
       if ((_ref = self.done) != null) {
-        _ref.call(self, self, n0);
+        _ref.call(self, self, nComplete);
       }
     }
   });
@@ -263,6 +269,16 @@ taskQueue = function(limit, tgt, callback) {
     completed: {
       get: function() {
         return cq.completed;
+      }
+    },
+    inspect: {
+      value: function() {
+        return "[taskQueue backlog: " + this.backlog + " active: " + this.active + " completed: " + this.completed + "]";
+      }
+    },
+    toString: {
+      value: function() {
+        return this.inspect();
       }
     },
     step: {

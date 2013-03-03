@@ -67,17 +67,18 @@ closureQueue = (tgt, callback)->
   if typeof tgt is 'function'
     callback = tgt; tgt=null
 
-  n0 = 0; n1 = 0
+  nStarted = 0; nComplete = 0
   start = (callback)->
-    self.start?(self, n1 - n0++)
+    self.start?(self, nComplete - nStarted)
+    nStarted++
     return finish if not callback?
     return finish.wrap(callback)
   finish = ->
-    isdone = ++n1 is n0
-    self.finish?(self, n1-n0)
+    isdone = ++nComplete is nStarted
+    self.finish?(self, nComplete-nStarted)
     if isdone?
-      self.done?.call(self, self, n1)
-      callback?(null, self, n1)
+      self.done?.call(self, self, nComplete)
+      callback?(null, self, nComplete)
     return isdone
   finish.wrap = (callback)->
     return finish if not callback?
@@ -86,12 +87,13 @@ closureQueue = (tgt, callback)->
       finally finish()
   
   Object.defineProperties self=start,
-    started: get:-> n0
-    completed: get:-> n1
-    active: get:-> n1-n0
-    valueOf: value:-> n1-n0
-    isIdle: value:-> n1 is n0
-    isDone: value:-> n1 is n0 and n0>0
+    started: get:-> nStarted
+    completed: get:-> nComplete
+    active: get:-> nComplete - nStarted
+    inspect: value:-> "[closureQueue active: #{@active} completed: #{@completed}]"
+    toString: value:-> @inspect()
+    isIdle: value:-> nComplete is nStarted
+    isDone: value:-> nComplete is nStarted and nStarted>0
   if tgt?
     self[k]=v for k,v of tgt
   return self
@@ -114,8 +116,8 @@ taskQueue = (limit, tgt, callback)->
     finish: (cq, nActive)->
       self.step(-1); return
     done: (cq, nComplete)->
-      callback?(null, self, n0)
-      self.done?.call(self, self, n0); return
+      callback?(null, self, nComplete)
+      self.done?.call(self, self, nComplete); return
 
   taskq = []
   addTask = (fn)->
@@ -137,6 +139,8 @@ taskQueue = (limit, tgt, callback)->
     backlog: get:-> taskq.length
     incomplete: get:-> cq.active+taskq.length
     completed: get:-> cq.completed
+    inspect: value:-> "[taskQueue backlog: #{@backlog} active: #{@active} completed: #{@completed}]"
+    toString: value:-> @inspect()
     step: value: step
     invokeTask: value: invokeTask
     isIdle: value:-> taskq.length is 0 and cq.isIdle()
