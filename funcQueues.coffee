@@ -29,7 +29,7 @@ functionList = do ->
 
   init = (self, args...)->
     desc = {}
-    for each of args
+    for each in args
       for own k,v of each
         desc[k] = value:v
     Object.defineProperties(self, desc)
