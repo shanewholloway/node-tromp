@@ -177,7 +177,8 @@ class WalkNode
   WalkListing: WalkListing
   constructor: (root, opt)->
     Object.defineProperties @,
-      root:{value:root},
+      root: value: root
+      fs: value: opt?.fs || @fs
       walkQueue: value: closureQueue(->root.emit('done'))
       _fs_queue: value: taskQueue(tasks:opt.tasks || 10)
 
@@ -211,12 +212,13 @@ class WalkNode
       for fn in @entryFilters
         try fn(entry) catch err
 
+  fs: fs
   _fs_stat: (aPath, callback)->
-    @_fs_queue (task)->
+    fs = @fs; @_fs_queue (task)->
       fs.stat(aPath, task.wrap(callback))
 
   _fs_readdir: (aPath, callback)->
-    @_fs_queue (task)->
+    fs = @fs; @_fs_queue (task)->
       fs.readdir(aPath, task.wrap(callback))
 
 

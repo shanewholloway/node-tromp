@@ -372,6 +372,9 @@ WalkNode = (function() {
       root: {
         value: root
       },
+      fs: {
+        value: (opt != null ? opt.fs : void 0) || this.fs
+      },
       walkQueue: {
         value: closureQueue(function() {
           return root.emit('done');
@@ -459,13 +462,17 @@ WalkNode = (function() {
     }
   };
 
+  WalkNode.prototype.fs = fs;
+
   WalkNode.prototype._fs_stat = function(aPath, callback) {
+    fs = this.fs;
     return this._fs_queue(function(task) {
       return fs.stat(aPath, task.wrap(callback));
     });
   };
 
   WalkNode.prototype._fs_readdir = function(aPath, callback) {
+    fs = this.fs;
     return this._fs_queue(function(task) {
       return fs.readdir(aPath, task.wrap(callback));
     });
