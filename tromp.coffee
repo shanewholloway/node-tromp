@@ -80,13 +80,14 @@ class WalkEntry
   inspect: -> @relPath
 
 
-class WalkListing
+class WalkListing extends events.EventEmitter
   Object.defineProperties @.prototype,
     path: get:-> @node.resolve()
     relPath: get:-> @node.relative @path
     rootPath: get:-> @node.rootPath
 
   constructor: (node)->
+    super()
     Object.defineProperty @, 'node', value:node
 
   _performListing: (target, done)->
@@ -96,9 +97,10 @@ class WalkListing
     listing = @; node = @node
     entry0 = node.newEntry()
 
-    if not (typeof target is 'function')
-      notify = (target.walkNotify || target.emit || ->).bind(target)
-    else notify = target
+    if target?
+      targetFn = (target.walkNotify || target.emit || target).bind(target)
+      notify = => @emit(arguments...); targetFn(arguments...)
+    else notify = @emit.bind(@)
 
     notify 'listing_pre', listing
     postDone = (err)->
@@ -225,7 +227,7 @@ class WalkNode
 class WalkRoot extends events.EventEmitter
   WalkNode: WalkNode
   constructor: (opt={})->
-    events.EventEmitter.call @
+    super()
     @node = new @.WalkNode(@, opt)
 
     @reject(/^\./) if not opt.showHidden
@@ -236,6 +238,9 @@ class WalkRoot extends events.EventEmitter
     @node.walk(pathOrEntry, target||@)
   autoWalk: (entry, target)->
     entry.walk(target)
+
+  #walkNotify: (eventKey, args...)->
+  walkNotify: events.EventEmitter::emit
 
   isDone: ()-> return @node.walkQueue.isDone()
   done: (callback)->
