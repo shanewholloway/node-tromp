@@ -2,7 +2,7 @@ all: build test
 build: tromp
 
 tromp: tromp.coffee funcQueues.coffee 
-	coffee -bc *.coffee
+	./node_modules/.bin/coffee -bc *.coffee
 
 test: tromp
 	node test/demo.js

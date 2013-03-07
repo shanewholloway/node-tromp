@@ -1,6 +1,6 @@
 {
   "name": "tromp",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "license": "MIT",
   "readmeFilename": "README.md",
   "description": "Asynchronous filesystem directory walk with events and accept/reject filtering. For use with minimatch or other filtering tools.",
@@ -11,5 +11,6 @@
 
   "repository": { "type": "git",
     "url": "git://github.com/shanewholloway/node-tromp.git" },
-  "scripts": { "test": "make test" }
+  "scripts": { "test": "make test" },
+  "devDependencies": { "coffee-script": "~1.6" }
 }
