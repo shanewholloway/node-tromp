@@ -70,7 +70,7 @@ class WalkEntry
 
   autoWalk: (target)->
     if @isWalkable()
-      @node.root.autoWalk(@, target)
+      @node.root.autoWalk?(@, target)
   walk: (target, opt={})->
     if @isWalkable(opt.force)
       root = opt.root || @node.root
@@ -179,11 +179,11 @@ class WalkListing extends events.EventEmitter
 class WalkNode
   WalkEntry: WalkEntry
   WalkListing: WalkListing
-  constructor: (root, opt)->
+  constructor: (root, opt, doneFn)->
     Object.defineProperties @,
       root: value: root
       fs: value: opt?.fs || @fs
-      walkQueue: value: closureQueue(->root.emit('done'))
+      walkQueue: value: closureQueue(doneFn)
       _fs_queue: value: taskQueue(tasks:opt.tasks || 10)
 
   create: (listPath, entry, target)->
@@ -234,7 +234,7 @@ class WalkRoot extends events.EventEmitter
   WalkNode: WalkNode
   constructor: (opt={})->
     super()
-    @node = new @.WalkNode(@, opt)
+    @node = new @.WalkNode(@, opt, =>@emit('done'))
 
     @reject(/^\./) if not opt.showHidden
     if opt.autoWalk?

@@ -142,8 +142,9 @@ WalkEntry = (function() {
   };
 
   WalkEntry.prototype.autoWalk = function(target) {
+    var _base;
     if (this.isWalkable()) {
-      return this.node.root.autoWalk(this, target);
+      return typeof (_base = this.node.root).autoWalk === "function" ? _base.autoWalk(this, target) : void 0;
     }
   };
 
@@ -380,7 +381,7 @@ WalkNode = (function() {
 
   WalkNode.prototype.WalkListing = WalkListing;
 
-  function WalkNode(root, opt) {
+  function WalkNode(root, opt, doneFn) {
     Object.defineProperties(this, {
       root: {
         value: root
@@ -389,9 +390,7 @@ WalkNode = (function() {
         value: (opt != null ? opt.fs : void 0) || this.fs
       },
       walkQueue: {
-        value: closureQueue(function() {
-          return root.emit('done');
-        })
+        value: closureQueue(doneFn)
       },
       _fs_queue: {
         value: taskQueue({
@@ -508,11 +507,14 @@ WalkRoot = (function(_super) {
   WalkRoot.prototype.WalkNode = WalkNode;
 
   function WalkRoot(opt) {
+    var _this = this;
     if (opt == null) {
       opt = {};
     }
     WalkRoot.__super__.constructor.call(this);
-    this.node = new this.WalkNode(this, opt);
+    this.node = new this.WalkNode(this, opt, function() {
+      return _this.emit('done');
+    });
     if (!opt.showHidden) {
       this.reject(/^\./);
     }
