@@ -106,7 +106,6 @@ class WalkListing extends events.EventEmitter
 
     notify 'listing_pre', listing
     postDone = (err)->
-      postDone = null
       notify 'listed', listing
       done?(err, listing, target)
       return
@@ -121,7 +120,7 @@ class WalkListing extends events.EventEmitter
       notify 'listing', listing
       n = entries.length
       if n is 0
-        postDone?()
+        postDone()
         return
 
       entries.forEach (entry)->
@@ -137,7 +136,7 @@ class WalkListing extends events.EventEmitter
               notify entry.mode, entry, listing
               entry.autoWalk(target)
           if --n is 0
-            postDone?()
+            postDone()
           return
       return
     return @
@@ -255,13 +254,16 @@ class WalkRoot extends events.EventEmitter
     else callback()
     return @
   filter: (args...)->
-    @node.addEntryFilter (e)-> e.filter(args...) if args[0]?
+    if args[0]?
+      @node.addEntryFilter (e)-> e.filter(args...)
     return @
   accept: (args...)->
-    @node.addEntryFilter (e)-> e.accept(args...) if args[0]?
+    if args[0]?
+      @node.addEntryFilter (e)-> e.accept(args...)
     return @
   reject: (args...)->
-    @node.addEntryFilter (e)-> e.reject(args...) if args[0]?
+    if args[0]?
+      @node.addEntryFilter (e)-> e.reject(args...)
     return @
 
 tromp = (path, opt, callback)->

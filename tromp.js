@@ -229,7 +229,6 @@ WalkListing = (function(_super) {
     }
     notify('listing_pre', listing);
     postDone = function(err) {
-      postDone = null;
       notify('listed', listing);
       if (typeof done === "function") {
         done(err, listing, target);
@@ -250,9 +249,7 @@ WalkListing = (function(_super) {
       notify('listing', listing);
       n = entries.length;
       if (n === 0) {
-        if (typeof postDone === "function") {
-          postDone();
-        }
+        postDone();
         return;
       }
       entries.forEach(function(entry) {
@@ -275,9 +272,7 @@ WalkListing = (function(_super) {
             }
           }
           if (--n === 0) {
-            if (typeof postDone === "function") {
-              postDone();
-            }
+            postDone();
           }
         });
       });
@@ -554,33 +549,33 @@ WalkRoot = (function(_super) {
   WalkRoot.prototype.filter = function() {
     var args;
     args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-    this.node.addEntryFilter(function(e) {
-      if (args[0] != null) {
+    if (args[0] != null) {
+      this.node.addEntryFilter(function(e) {
         return e.filter.apply(e, args);
-      }
-    });
+      });
+    }
     return this;
   };
 
   WalkRoot.prototype.accept = function() {
     var args;
     args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-    this.node.addEntryFilter(function(e) {
-      if (args[0] != null) {
+    if (args[0] != null) {
+      this.node.addEntryFilter(function(e) {
         return e.accept.apply(e, args);
-      }
-    });
+      });
+    }
     return this;
   };
 
   WalkRoot.prototype.reject = function() {
     var args;
     args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-    this.node.addEntryFilter(function(e) {
-      if (args[0] != null) {
+    if (args[0] != null) {
+      this.node.addEntryFilter(function(e) {
         return e.reject.apply(e, args);
-      }
-    });
+      });
+    }
     return this;
   };
 
