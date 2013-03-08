@@ -26,8 +26,10 @@ class WalkEntry
     rootPath: get: -> @node.rootPath
     modeKey: get: -> @mode
 
-  constructor: (node)->
+  constructor: (node, name)->
     Object.defineProperty @, 'node', value:node
+    if name?
+      Object.defineProperty @, 'name', value:name
 
   create: (name)->
     Object.create(@, name:{value:name})
@@ -192,7 +194,11 @@ class WalkNode
       entry:{value: entry}
       target:{value: target}
 
-  newEntry: -> new @.WalkEntry(@)
+  newEntry: (name)-> new @.WalkEntry(@, name)
+  newEntryForPath: (aPath, target)->
+    self = @create(path.dirname(aPath), null, target)
+    return self.newEntry(path.basename(aPath))
+
   newListing: (pathOrEntry, target)->
     if pathOrEntry.isWalkable?() # is it an entry?
       self = @create(pathOrEntry.walkPath?() or pathOrEntry.path, pathOrEntry, target)

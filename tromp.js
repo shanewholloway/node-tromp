@@ -53,10 +53,15 @@ WalkEntry = (function() {
     }
   });
 
-  function WalkEntry(node) {
+  function WalkEntry(node, name) {
     Object.defineProperty(this, 'node', {
       value: node
     });
+    if (name != null) {
+      Object.defineProperty(this, 'name', {
+        value: name
+      });
+    }
   }
 
   WalkEntry.prototype.create = function(name) {
@@ -414,8 +419,14 @@ WalkNode = (function() {
     });
   };
 
-  WalkNode.prototype.newEntry = function() {
-    return new this.WalkEntry(this);
+  WalkNode.prototype.newEntry = function(name) {
+    return new this.WalkEntry(this, name);
+  };
+
+  WalkNode.prototype.newEntryForPath = function(aPath, target) {
+    var self;
+    self = this.create(path.dirname(aPath), null, target);
+    return self.newEntry(path.basename(aPath));
   };
 
   WalkNode.prototype.newListing = function(pathOrEntry, target) {
