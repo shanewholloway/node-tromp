@@ -219,6 +219,7 @@ WalkListing = (function(_super) {
     node = this.node;
     entry0 = node.newEntry();
     if (target != null) {
+      target = (typeof target.walkListing === "function" ? target.walkListing(listing) : void 0) || target;
       targetFn = (target.walkNotify || target.emit || target).bind(target);
       notify = function() {
         _this.emit.apply(_this, arguments);

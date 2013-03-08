@@ -100,6 +100,7 @@ class WalkListing extends events.EventEmitter
     entry0 = node.newEntry()
 
     if target?
+      target = target.walkListing?(listing) or target
       targetFn = (target.walkNotify || target.emit || target).bind(target)
       notify = => @emit(arguments...); targetFn(arguments...)
     else notify = @emit.bind(@)
