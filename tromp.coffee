@@ -93,7 +93,7 @@ class WalkListing extends events.EventEmitter
     Object.defineProperty @, 'node', value:node
 
   _performListing: (target, done)->
-    if @_entries is not undefined
+    if @_entries isnt undefined
       return false
     @_entries = null
     listing = @; node = @node
@@ -270,7 +270,7 @@ class WalkRoot extends events.EventEmitter
 tromp = (path, opt, callback)->
   if typeof opt is 'function'
     callback = opt; opt = null
-  if typeof path is not 'string'
+  if typeof path isnt 'string'
     opt = path; path = null
   root = new tromp.WalkRoot(opt)
   root.on('listing', callback) if callback?

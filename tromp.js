@@ -211,7 +211,7 @@ WalkListing = (function(_super) {
   WalkListing.prototype._performListing = function(target, done) {
     var entry0, listing, node, notify, postDone, targetFn,
       _this = this;
-    if (this._entries === !void 0) {
+    if (this._entries !== void 0) {
       return false;
     }
     this._entries = null;
@@ -590,7 +590,7 @@ tromp = function(path, opt, callback) {
     callback = opt;
     opt = null;
   }
-  if (typeof path === !'string') {
+  if (typeof path !== 'string') {
     opt = path;
     path = null;
   }

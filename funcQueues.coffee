@@ -8,6 +8,22 @@
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
 
+stableSort = (list, options={})->
+  keyFn = options.key or (e)->e
+  res = [].map.call list, (e,i)-> [keyFn(e), i, e]
+  res.sort (a,b)->
+    return 1 if a[0]>b[0]
+    return -1 if a[0]<b[0]
+    return a[1]-b[1]
+  tgt = if options.inplace then list else res
+  tgt.length = res.length
+  for e,i in res
+    if e is undefined
+      delete tgt[i]
+    else tgt[i]=e[2]
+  return tgt
+
+
 # `functionList()` creates a new function list with an `invoke()` method that
 # will call each function in the list with the supplied arguments. Also
 # provides function-like methods of `bind()`, `call()` and `apply()` to provide
@@ -52,6 +68,17 @@ functionList = do ->
   create.once = (self=[], error)->
     init self, methods,
       invoke: -> invokeEach(self.splice(0), arguments, error); return @
+
+  create.ordered = (self=[], error)->
+    init self, methods,
+      add: (w, fn)->
+        if typeof w is 'function'
+          fn = w; w = undefined
+        else if w? then fn.w = w
+        self.push fn
+      sort: -> stableSort self, inplace:true, key:(e)-> e.w
+      invoke: ->
+        invokeEach(self.sort(), arguments, error); return @
 
   return create
 exports.functionList = functionList
@@ -109,7 +136,7 @@ taskQueue = (limit, tgt, callback)->
     callback = limit; tgt=null; limit = 9e9
   if typeof tgt is 'function'
     callback = tgt; tgt=null
-  if not (typeof limit is 'number')
+  if not isFinite(limit)
     tgt = limit; limit = (tgt?.limit||9e9)+0
 
   cq = closureQueue
@@ -122,6 +149,9 @@ taskQueue = (limit, tgt, callback)->
   taskq = []
   addTask = (fn)->
     taskq.push(fn); self.step(+1); self
+  doTask = (fn)->
+    addTask (done)->
+      try fn() finally done()
   extendTasks = (fnList)->
     taskq = taskq.concat(fnList)
     self.step(fnList.length); self
@@ -144,6 +174,7 @@ taskQueue = (limit, tgt, callback)->
     completed: get:-> cq.completed
     inspect: value:-> "[taskQueue backlog: #{@backlog} active: #{@active} completed: #{@completed}]"
     toString: value:-> @inspect()
+    do: value: doTask
     extend: value: extendTasks
     step: value: step
     invokeTask: value: invokeTask
