@@ -113,7 +113,7 @@ class WalkListing extends events.EventEmitter
 
     node._fs_readdir @path, (err, entries)->
       if err?
-        notify 'error', err, {op:'fs.readdir', listing:listing}
+        notify 'error_readdir', err, {listing:listing}
 
       entries = (entries||[]).map (e)-> entry0.create(e)
       listing._entries = entries
@@ -127,7 +127,7 @@ class WalkListing extends events.EventEmitter
       entries.forEach (entry)->
         node._fs_stat entry.path, (err, stat)->
           if err?
-            notify 'error', err, {op:'fs.stat', entry:entry, listing:listing}
+            notify 'error_stat', err, {entry:entry, listing:listing}
           if stat?
             entry.initStat(stat)
             node.filterEntry(entry)

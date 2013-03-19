@@ -16,3 +16,6 @@ if (0)
 
 if (0)
   testWalker.walk(path.join(__dirname, '../..'))
+
+if (1)
+  testWalker.walk('this-path-does-not-exist-or-someone-is-yanking-your-chain')

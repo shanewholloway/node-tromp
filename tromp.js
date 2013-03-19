@@ -238,8 +238,7 @@ WalkListing = (function(_super) {
     node._fs_readdir(this.path, function(err, entries) {
       var n;
       if (err != null) {
-        notify('error', err, {
-          op: 'fs.readdir',
+        notify('error_readdir', err, {
           listing: listing
         });
       }
@@ -256,8 +255,7 @@ WalkListing = (function(_super) {
       entries.forEach(function(entry) {
         return node._fs_stat(entry.path, function(err, stat) {
           if (err != null) {
-            notify('error', err, {
-              op: 'fs.stat',
+            notify('error_stat', err, {
               entry: entry,
               listing: listing
             });
