@@ -74,13 +74,19 @@ WalkEntry = (function() {
 
   WalkEntry.prototype.mode = modeForStat(null);
 
-  WalkEntry.prototype.initStat = function(stat) {
+  WalkEntry.prototype.initStat = function(stat, lstat) {
     Object.defineProperties(this, {
       stat: {
         value: stat
       },
+      lstat: {
+        value: lstat
+      },
       mode: {
         value: modeForStat(stat)
+      },
+      lmode: {
+        value: modeForStat(lstat)
       }
     });
     return this;
@@ -94,6 +100,11 @@ WalkEntry = (function() {
   WalkEntry.prototype.isDirectory = function() {
     var _ref1;
     return (_ref1 = this.stat) != null ? _ref1.isDirectory() : void 0;
+  };
+
+  WalkEntry.prototype.isSymbolicLink = function() {
+    var _ref1;
+    return (_ref1 = this.lstat) != null ? _ref1.isSymbolicLink() : void 0;
   };
 
   WalkEntry.prototype.match = function(rx, ctx) {
@@ -253,25 +264,41 @@ WalkListing = (function(_super) {
         return;
       }
       entries.forEach(function(entry) {
-        return node._fs_stat(entry.path, function(err, stat) {
+        return node._fs_lstat(entry.path, function(err, lstat) {
+          var addEntry;
           if (err != null) {
             notify('error_stat', err, {
               entry: entry,
               listing: listing
             });
           }
-          if (stat != null) {
-            entry.initStat(stat);
-            node.filterEntry(entry);
-            notify('filter', entry, listing);
-            if (!entry.excluded) {
-              notify('entry', entry, listing);
-              notify(entry.mode, entry, listing);
-              entry.autoWalk(target);
+          addEntry = function(err, stat) {
+            if (err != null) {
+              notify('error_stat', err, {
+                entry: entry,
+                listing: listing
+              });
             }
-          }
-          if (--n === 0) {
-            postDone();
+            if (stat != null) {
+              entry.initStat(stat, lstat);
+              node.filterEntry(entry);
+              notify('filter', entry, listing);
+              if (!entry.excluded) {
+                notify('entry', entry, listing);
+                notify(entry.mode, entry, listing);
+                entry.autoWalk(target);
+              }
+            }
+            if (--n === 0) {
+              postDone();
+            }
+          };
+          if (lstat != null) {
+            if (lstat.isSymbolicLink()) {
+              node._fs_stat(entry.path, addEntry);
+            } else {
+              addEntry(null, lstat);
+            }
           }
         });
       });
@@ -475,6 +502,13 @@ WalkNode = (function() {
   };
 
   WalkNode.prototype.fs = fs;
+
+  WalkNode.prototype._fs_lstat = function(aPath, callback) {
+    fs = this.fs;
+    return this._fs_queue(function(task) {
+      return fs.lstat(aPath, task.wrap(callback));
+    });
+  };
 
   WalkNode.prototype._fs_stat = function(aPath, callback) {
     fs = this.fs;

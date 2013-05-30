@@ -35,13 +35,17 @@ class WalkEntry
     Object.create(@, name:{value:name})
 
   mode: modeForStat(null)
-  initStat: (stat)->
+  initStat: (stat, lstat)->
     Object.defineProperties @,
       stat: value:stat
+      lstat: value:lstat
       mode: value:modeForStat(stat)
+      lmode: value:modeForStat(lstat)
     return @
   isFile: -> @stat?.isFile()
   isDirectory: -> @stat?.isDirectory()
+  isSymbolicLink: -> @lstat?.isSymbolicLink()
+
   match: (rx, ctx)->
     return null if not rx?
     return rx.call(ctx, @.name) if rx.call?
@@ -125,19 +129,30 @@ class WalkListing extends events.EventEmitter
         return
 
       entries.forEach (entry)->
-        node._fs_stat entry.path, (err, stat)->
+        node._fs_lstat entry.path, (err, lstat)->
           if err?
             notify 'error_stat', err, {entry:entry, listing:listing}
-          if stat?
-            entry.initStat(stat)
-            node.filterEntry(entry)
-            notify 'filter', entry, listing
-            if not entry.excluded
-              notify 'entry', entry, listing
-              notify entry.mode, entry, listing
-              entry.autoWalk(target)
-          if --n is 0
-            postDone()
+
+          addEntry = (err, stat)->
+            if err?
+              notify 'error_stat', err, {entry:entry, listing:listing}
+
+            if stat?
+              entry.initStat(stat, lstat)
+              node.filterEntry(entry)
+              notify 'filter', entry, listing
+              if not entry.excluded
+                notify 'entry', entry, listing
+                notify entry.mode, entry, listing
+                entry.autoWalk(target)
+            if --n is 0
+              postDone()
+            return
+
+          if lstat?
+            if lstat.isSymbolicLink()
+              node._fs_stat entry.path, addEntry
+            else addEntry(null, lstat)
           return
       return
     return @
@@ -221,6 +236,9 @@ class WalkNode
         try fn(entry) catch err
 
   fs: fs
+  _fs_lstat: (aPath, callback)->
+    fs = @fs; @_fs_queue (task)->
+      fs.lstat(aPath, task.wrap(callback))
   _fs_stat: (aPath, callback)->
     fs = @fs; @_fs_queue (task)->
       fs.stat(aPath, task.wrap(callback))
